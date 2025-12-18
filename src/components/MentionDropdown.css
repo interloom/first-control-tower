@@ -1,0 +1,110 @@
+.mention-dropdown {
+  position: absolute;
+  min-width: 220px;
+  max-width: 300px;
+  max-height: 280px;
+  background: var(--mono-0);
+  border: 1px solid var(--mono-200);
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12), 0 1px 4px rgba(0, 0, 0, 0.08);
+  overflow-y: auto;
+  overflow-x: hidden;
+  z-index: 1000;
+  animation: dropdownFadeIn 0.15s ease-out;
+}
+
+@keyframes dropdownFadeIn {
+  0% {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.mention-dropdown-section {
+  padding: 4px 0;
+}
+
+.mention-dropdown-section:not(:last-child) {
+  border-bottom: 1px solid var(--mono-100);
+}
+
+.mention-dropdown-section-title {
+  padding: 8px 12px 6px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--mono-400);
+}
+
+.mention-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background 0.1s ease;
+}
+
+.mention-dropdown-item:hover {
+  background: var(--mono-100);
+}
+
+.mention-dropdown-item.selected {
+  background: var(--mono-150, var(--mono-100));
+}
+
+.mention-dropdown-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  color: var(--mono-500);
+  flex-shrink: 0;
+}
+
+.mention-dropdown-icon.command {
+  color: var(--mono-400);
+}
+
+.mention-dropdown-label {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--mono-800);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mention-dropdown-type {
+  font-size: 11px;
+  color: var(--mono-400);
+  text-transform: capitalize;
+}
+
+.mention-dropdown-empty {
+  padding: 12px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--mono-400);
+}
+
+/* Scrollbar styling */
+.mention-dropdown::-webkit-scrollbar {
+  width: 4px;
+}
+
+.mention-dropdown::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.mention-dropdown::-webkit-scrollbar-thumb {
+  background: var(--mono-300);
+  border-radius: 2px;
+}

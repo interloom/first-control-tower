@@ -1,0 +1,52 @@
+.mention-input-wrapper {
+  position: relative;
+  width: 100%;
+  min-height: 44px;
+}
+
+.mention-input-editor {
+  width: 100%;
+  min-height: 44px;
+  max-height: 120px;
+  padding: 12px 16px;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--mono-800);
+  background: transparent;
+  border: none;
+  outline: none;
+  overflow-y: auto;
+  word-wrap: break-word;
+  white-space: pre-wrap;
+  border-radius: 12px 12px 0 0;
+}
+
+.mention-input-editor:focus {
+  outline: none;
+}
+
+/* Placeholder styling */
+.mention-input-editor.is-empty::before {
+  content: attr(data-placeholder);
+  color: var(--mono-400);
+  pointer-events: none;
+  position: absolute;
+  top: 12px;
+  left: 16px;
+}
+
+
+/* Scrollbar styling */
+.mention-input-editor::-webkit-scrollbar {
+  width: 4px;
+}
+
+.mention-input-editor::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.mention-input-editor::-webkit-scrollbar-thumb {
+  background: var(--mono-300);
+  border-radius: 2px;
+}

@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Process Flow Visualization</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #0a0a1a 0%, #1a1a2e 50%, #0f0f23 100%);
+      min-height: 100vh;
+      color: #e0e0e0;
+      overflow: hidden;
+    }
+
+    .container {
+      display: flex;
+      height: 100vh;
+    }
+
+    /* Control Panel */
+    .controls {
+      width: 280px;
+      background: rgba(20, 20, 35, 0.95);
+      border-right: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 24px;
+      overflow-y: auto;
+      backdrop-filter: blur(10px);
+    }
+
+    h1 {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: #fff;
+    }
+
+    .subtitle {
+      font-size: 12px;
+      color: #888;
+      margin-bottom: 24px;
+    }
+
+    .control-group {
+      margin-bottom: 24px;
+    }
+
+    .control-group label {
+      display: block;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #888;
+      margin-bottom: 8px;
+    }
+
+    .control-group input[type="range"] {
+      width: 100%;
+      height: 4px;
+      -webkit-appearance: none;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 2px;
+      outline: none;
+    }
+
+    .control-group input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px;
+      height: 16px;
+      background: #6366f1;
+      border-radius: 50%;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(99, 102, 241, 0.4);
+    }
+
+    .value-display {
+      font-size: 24px;
+      font-weight: 600;
+      color: #fff;
+      margin-top: 8px;
+    }
+
+    .color-scheme {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .color-chip {
+      width: 32px;
+      height: 32px;
+      border-radius: 6px;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: all 0.2s;
+    }
+
+    .color-chip:hover {
+      transform: scale(1.1);
+    }
+
+    .color-chip.active {
+      border-color: #fff;
+      box-shadow: 0 0 12px rgba(255, 255, 255, 0.3);
+    }
+
+    .divider {
+      height: 1px;
+      background: rgba(255, 255, 255, 0.1);
+      margin: 24px 0;
+    }
+
+    /* Canvas Area */
+    .canvas-container {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+    }
+
+    #flowCanvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Stats Overlay */
+    .stats-overlay {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: rgba(20, 20, 35, 0.9);
+      backdrop-filter: blur(10px);
+      border-radius: 12px;
+      padding: 16px 20px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 32px;
+      font-size: 12px;
+      margin-bottom: 8px;
+    }
+
+    .stat-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .stat-label {
+      color: #888;
+    }
+
+    .stat-value {
+      color: #fff;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Legend */
+    .legend {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      background: rgba(20, 20, 35, 0.9);
+      backdrop-filter: blur(10px);
+      border-radius: 12px;
+      padding: 16px 20px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .legend h3 {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #888;
+      margin-bottom: 12px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      margin-bottom: 6px;
+    }
+
+    .legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="controls">
+      <h1>Process Flow</h1>
+      <p class="subtitle">Particle trails visualization</p>
+
+      <div class="control-group">
+        <label>Active Cases</label>
+        <input type="range" id="caseCount" min="1" max="500" value="50">
+        <div class="value-display" id="caseCountDisplay">50</div>
+      </div>
+
+      <div class="control-group">
+        <label>Flow Speed</label>
+        <input type="range" id="flowSpeed" min="0.1" max="3" step="0.1" value="1">
+        <div class="value-display" id="flowSpeedDisplay">1.0x</div>
+      </div>
+
+      <div class="control-group">
+        <label>Spawn Rate (cases/sec)</label>
+        <input type="range" id="spawnRate" min="0.5" max="20" step="0.5" value="5">
+        <div class="value-display" id="spawnRateDisplay">5</div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="control-group">
+        <label>Color Scheme</label>
+        <div class="color-scheme">
+          <div class="color-chip active" data-scheme="indigo" style="background: linear-gradient(135deg, #6366f1, #8b5cf6)"></div>
+          <div class="color-chip" data-scheme="cyan" style="background: linear-gradient(135deg, #06b6d4, #3b82f6)"></div>
+          <div class="color-chip" data-scheme="emerald" style="background: linear-gradient(135deg, #10b981, #6ee7b7)"></div>
+          <div class="color-chip" data-scheme="amber" style="background: linear-gradient(135deg, #f59e0b, #fbbf24)"></div>
+          <div class="color-chip" data-scheme="rose" style="background: linear-gradient(135deg, #f43f5e, #fb7185)"></div>
+          <div class="color-chip" data-scheme="multi" style="background: conic-gradient(#6366f1, #06b6d4, #10b981, #f59e0b, #f43f5e, #6366f1)"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="canvas-container">
+      <canvas id="flowCanvas"></canvas>
+      
+      <div class="stats-overlay">
+        <div class="stat-row">
+          <span class="stat-label">Active Cases</span>
+          <span class="stat-value" id="activeCases">0</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">Completed</span>
+          <span class="stat-value" id="completedCases">0</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">Throughput</span>
+          <span class="stat-value" id="throughput">0/s</span>
+        </div>
+      </div>
+
+      <div class="legend">
+        <h3>Process Nodes</h3>
+        <div class="legend-item">
+          <div class="legend-dot" style="background: #22c55e"></div>
+          <span>Start / Inbox</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot" style="background: #6366f1"></div>
+          <span>Processing</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot" style="background: #f59e0b"></div>
+          <span>Decision</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot" style="background: #ef4444"></div>
+          <span>End / Outbox</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ============================================
+    // CONFIGURATION & STATE
+    // ============================================
+    
+    const CONFIG = {
+      caseCount: 50,
+      flowSpeed: 1,
+      spawnRate: 5,
+      colorScheme: 'indigo'
+    };
+
+    const COLOR_SCHEMES = {
+      indigo: ['#6366f1', '#8b5cf6', '#a78bfa'],
+      cyan: ['#06b6d4', '#3b82f6', '#0ea5e9'],
+      emerald: ['#10b981', '#6ee7b7', '#34d399'],
+      amber: ['#f59e0b', '#fbbf24', '#fcd34d'],
+      rose: ['#f43f5e', '#fb7185', '#fda4af'],
+      multi: ['#6366f1', '#06b6d4', '#10b981', '#f59e0b', '#f43f5e']
+    };
+
+    // ============================================
+    // PROCESS GRAPH DEFINITION
+    // ============================================
+    
+    const GRAPH = {
+      nodes: [
+        { id: 'start', type: 'inbox', label: 'Inbox', x: 0.1, y: 0.5 },
+        { id: 'triage', type: 'process', label: 'Triage', x: 0.25, y: 0.5 },
+        { id: 'decision1', type: 'decision', label: 'Priority?', x: 0.4, y: 0.5 },
+        { id: 'fast_track', type: 'process', label: 'Fast Track', x: 0.55, y: 0.25 },
+        { id: 'standard', type: 'process', label: 'Standard', x: 0.55, y: 0.5 },
+        { id: 'complex', type: 'process', label: 'Complex', x: 0.55, y: 0.75 },
+        { id: 'review', type: 'process', label: 'Review', x: 0.7, y: 0.5 },
+        { id: 'decision2', type: 'decision', label: 'Approved?', x: 0.82, y: 0.5 },
+        { id: 'complete', type: 'outbox', label: 'Complete', x: 0.95, y: 0.35 },
+        { id: 'rework', type: 'outbox', label: 'Rework', x: 0.95, y: 0.65 },
+      ],
+      edges: [
+        { from: 'start', to: 'triage', weight: 1 },
+        { from: 'triage', to: 'decision1', weight: 1 },
+        { from: 'decision1', to: 'fast_track', weight: 0.2 },
+        { from: 'decision1', to: 'standard', weight: 0.5 },
+        { from: 'decision1', to: 'complex', weight: 0.3 },
+        { from: 'fast_track', to: 'review', weight: 1 },
+        { from: 'standard', to: 'review', weight: 1 },
+        { from: 'complex', to: 'review', weight: 1 },
+        { from: 'review', to: 'decision2', weight: 1 },
+        { from: 'decision2', to: 'complete', weight: 0.8 },
+        { from: 'decision2', to: 'rework', weight: 0.2 },
+      ]
+    };
+
+    // Build adjacency for path finding
+    const adjacency = {};
+    GRAPH.nodes.forEach(n => adjacency[n.id] = []);
+    GRAPH.edges.forEach(e => {
+      adjacency[e.from].push({ to: e.to, weight: e.weight });
+    });
+
+    // ============================================
+    // CANVAS SETUP
+    // ============================================
+    
+    const canvas = document.getElementById('flowCanvas');
+    const ctx = canvas.getContext('2d');
+    let width, height;
+
+    function resize() {
+      const container = canvas.parentElement;
+      width = container.clientWidth;
+      height = container.clientHeight;
+      canvas.width = width * devicePixelRatio;
+      canvas.height = height * devicePixelRatio;
+      canvas.style.width = width + 'px';
+      canvas.style.height = height + 'px';
+      ctx.scale(devicePixelRatio, devicePixelRatio);
+    }
+
+    window.addEventListener('resize', resize);
+    resize();
+
+    // ============================================
+    // CASE/PARTICLE MANAGEMENT
+    // ============================================
+    
+    let cases = [];
+    let completedCount = 0;
+    let recentCompletions = [];
+    let lastSpawnTime = 0;
+
+    class Case {
+      constructor() {
+        this.id = Math.random().toString(36).substr(2, 9);
+        this.path = this.generatePath();
+        this.pathIndex = 0;
+        this.progress = 0;
+        this.speed = 0.3 + Math.random() * 0.4;
+        this.color = this.pickColor();
+        this.trail = [];
+        this.maxTrailLength = 30;
+        this.size = 3 + Math.random() * 2;
+      }
+
+      generatePath() {
+        const path = ['start'];
+        let current = 'start';
+        
+        while (adjacency[current] && adjacency[current].length > 0) {
+          const edges = adjacency[current];
+          const r = Math.random();
+          let cumulative = 0;
+          let next = edges[0].to;
+          
+          for (const edge of edges) {
+            cumulative += edge.weight;
+            if (r <= cumulative) {
+              next = edge.to;
+              break;
+            }
+          }
+          
+          path.push(next);
+          current = next;
+        }
+        
+        return path;
+      }
+
+      pickColor() {
+        const colors = COLOR_SCHEMES[CONFIG.colorScheme];
+        return colors[Math.floor(Math.random() * colors.length)];
+      }
+
+      update(dt) {
+        if (this.pathIndex >= this.path.length - 1) return false;
+
+        const speedMultiplier = CONFIG.flowSpeed * this.speed;
+        this.progress += dt * speedMultiplier * 0.001;
+
+        const pos = this.getPosition();
+        if (pos) {
+          this.trail.unshift({ x: pos.x, y: pos.y });
+          if (this.trail.length > this.maxTrailLength) {
+            this.trail.pop();
+          }
+        }
+
+        if (this.progress >= 1) {
+          this.progress = 0;
+          this.pathIndex++;
+          
+          if (this.pathIndex >= this.path.length - 1) {
+            return false;
+          }
+        }
+
+        return true;
+      }
+
+      getPosition() {
+        if (this.pathIndex >= this.path.length - 1) return null;
+
+        const fromNode = GRAPH.nodes.find(n => n.id === this.path[this.pathIndex]);
+        const toNode = GRAPH.nodes.find(n => n.id === this.path[this.pathIndex + 1]);
+
+        if (!fromNode || !toNode) return null;
+
+        const fromX = fromNode.x * width;
+        const fromY = fromNode.y * height;
+        const toX = toNode.x * width;
+        const toY = toNode.y * height;
+
+        const midX = (fromX + toX) / 2;
+        const cp1x = midX;
+        const cp1y = fromY;
+        const cp2x = midX;
+        const cp2y = toY;
+
+        const t = this.progress;
+        const t2 = t * t;
+        const t3 = t2 * t;
+        const mt = 1 - t;
+        const mt2 = mt * mt;
+        const mt3 = mt2 * mt;
+
+        return {
+          x: mt3 * fromX + 3 * mt2 * t * cp1x + 3 * mt * t2 * cp2x + t3 * toX,
+          y: mt3 * fromY + 3 * mt2 * t * cp1y + 3 * mt * t2 * cp2y + t3 * toY
+        };
+      }
+    }
+
+    function spawnCase() {
+      if (cases.length < CONFIG.caseCount) {
+        cases.push(new Case());
+      }
+    }
+
+    function updateCases(dt) {
+      const toRemove = [];
+      
+      cases.forEach((c, i) => {
+        if (!c.update(dt)) {
+          toRemove.push(i);
+          completedCount++;
+          recentCompletions.push(Date.now());
+        }
+      });
+
+      toRemove.reverse().forEach(i => cases.splice(i, 1));
+
+      const fiveSecondsAgo = Date.now() - 5000;
+      recentCompletions = recentCompletions.filter(t => t > fiveSecondsAgo);
+    }
+
+    // ============================================
+    // RENDERING
+    // ============================================
+    
+    function getNodeColor(type) {
+      switch (type) {
+        case 'inbox': return '#22c55e';
+        case 'process': return '#6366f1';
+        case 'decision': return '#f59e0b';
+        case 'outbox': return '#ef4444';
+        default: return '#888';
+      }
+    }
+
+    function drawEdges() {
+      ctx.lineWidth = 2;
+      ctx.lineCap = 'round';
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+
+      GRAPH.edges.forEach(edge => {
+        const fromNode = GRAPH.nodes.find(n => n.id === edge.from);
+        const toNode = GRAPH.nodes.find(n => n.id === edge.to);
+
+        const fromX = fromNode.x * width;
+        const fromY = fromNode.y * height;
+        const toX = toNode.x * width;
+        const toY = toNode.y * height;
+        const midX = (fromX + toX) / 2;
+
+        ctx.beginPath();
+        ctx.moveTo(fromX, fromY);
+        ctx.bezierCurveTo(midX, fromY, midX, toY, toX, toY);
+        ctx.stroke();
+      });
+    }
+
+    function drawNodes() {
+      GRAPH.nodes.forEach(node => {
+        const x = node.x * width;
+        const y = node.y * height;
+        const color = getNodeColor(node.type);
+
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(x, y, node.type === 'decision' ? 12 : 10, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+        ctx.beginPath();
+        ctx.arc(x - 2, y - 2, 4, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+        ctx.font = '11px -apple-system, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(node.label, x, y + 28);
+      });
+    }
+
+    function drawTrails() {
+      cases.forEach(c => {
+        if (c.trail.length < 2) return;
+
+        ctx.beginPath();
+        ctx.moveTo(c.trail[0].x, c.trail[0].y);
+
+        for (let i = 1; i < c.trail.length; i++) {
+          ctx.lineTo(c.trail[i].x, c.trail[i].y);
+        }
+
+        const gradient = ctx.createLinearGradient(
+          c.trail[0].x, c.trail[0].y,
+          c.trail[c.trail.length - 1].x, c.trail[c.trail.length - 1].y
+        );
+        gradient.addColorStop(0, c.color);
+        gradient.addColorStop(1, 'transparent');
+
+        ctx.strokeStyle = gradient;
+        ctx.lineWidth = c.size * 0.8;
+        ctx.lineCap = 'round';
+        ctx.stroke();
+      });
+    }
+
+    function drawParticles() {
+      cases.forEach(c => {
+        const pos = c.getPosition();
+        if (!pos) return;
+
+        ctx.fillStyle = c.color;
+        ctx.beginPath();
+        ctx.arc(pos.x, pos.y, c.size, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    }
+
+    function render() {
+      ctx.fillStyle = 'rgba(10, 10, 26, 1)';
+      ctx.fillRect(0, 0, width, height);
+
+      drawEdges();
+      drawTrails();
+      drawParticles();
+      drawNodes();
+    }
+
+    // ============================================
+    // MAIN LOOP
+    // ============================================
+    
+    let lastTime = 0;
+
+    function gameLoop(time) {
+      const dt = Math.min(time - lastTime, 100);
+      lastTime = time;
+
+      const spawnInterval = 1000 / CONFIG.spawnRate;
+      if (time - lastSpawnTime > spawnInterval) {
+        spawnCase();
+        lastSpawnTime = time;
+      }
+
+      updateCases(dt);
+      render();
+      updateStats();
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    function updateStats() {
+      document.getElementById('activeCases').textContent = cases.length;
+      document.getElementById('completedCases').textContent = completedCount;
+      
+      const throughput = recentCompletions.length / 5;
+      document.getElementById('throughput').textContent = throughput.toFixed(1) + '/s';
+    }
+
+    // ============================================
+    // UI CONTROLS
+    // ============================================
+    
+    document.querySelectorAll('.color-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        document.querySelectorAll('.color-chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        CONFIG.colorScheme = chip.dataset.scheme;
+        cases.forEach(c => c.color = c.pickColor());
+      });
+    });
+
+    document.getElementById('caseCount').addEventListener('input', e => {
+      CONFIG.caseCount = parseInt(e.target.value);
+      document.getElementById('caseCountDisplay').textContent = CONFIG.caseCount;
+    });
+
+    document.getElementById('flowSpeed').addEventListener('input', e => {
+      CONFIG.flowSpeed = parseFloat(e.target.value);
+      document.getElementById('flowSpeedDisplay').textContent = CONFIG.flowSpeed.toFixed(1) + 'x';
+    });
+
+    document.getElementById('spawnRate').addEventListener('input', e => {
+      CONFIG.spawnRate = parseFloat(e.target.value);
+      document.getElementById('spawnRateDisplay').textContent = CONFIG.spawnRate;
+    });
+
+    // Start
+    requestAnimationFrame(gameLoop);
+  </script>
+</body>
+</html>

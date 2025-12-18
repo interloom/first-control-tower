@@ -1,0 +1,116 @@
+.canvas-container {
+  flex: 1;
+  position: relative;
+  border: 1px solid var(--alpha-film-200);
+  border-radius: 7px;
+  margin: 0 10px 11px 0;
+  overflow: hidden;
+  background: var(--mono-50);
+}
+
+.react-flow {
+  background: var(--mono-50);
+}
+
+.react-flow__controls {
+  box-shadow: 0 2px 4px var(--alpha-film-100);
+  border: 1px solid var(--alpha-film-150);
+  border-radius: 8px;
+  overflow: hidden;
+  bottom: 84px !important;
+  right: 12px !important;
+  left: auto !important;
+}
+
+.react-flow__controls-button {
+  background: var(--mono-0);
+  border: none;
+  border-bottom: 1px solid var(--alpha-film-100);
+  width: 28px;
+  height: 28px;
+}
+
+.react-flow__controls-button:last-child {
+  border-bottom: none;
+}
+
+.react-flow__controls-button:hover {
+  background: var(--mono-100);
+}
+
+.react-flow__controls-button svg {
+  fill: var(--mono-600);
+}
+
+/* Auto-layout button active state */
+.react-flow__controls-button.auto-layout-active {
+  background: var(--blue-50, #eff6ff);
+}
+
+.react-flow__controls-button.auto-layout-active svg {
+  stroke: var(--blue-500, #3b82f6);
+}
+
+.react-flow__controls-button.auto-layout-active:hover {
+  background: var(--blue-100, #dbeafe);
+}
+
+.react-flow__edge-path {
+  stroke: var(--mono-300);
+  stroke-width: 2;
+}
+
+.react-flow__handle {
+  width: 8px;
+  height: 8px;
+  background: var(--mono-300);
+  border: 2px solid var(--mono-0);
+}
+
+.react-flow__handle:hover {
+  background: var(--blue-400);
+}
+
+/* Case Path styling */
+.react-flow__edge-path {
+  stroke: var(--mono-300);
+  stroke-width: 1.5;
+}
+
+/* Selected edge styling - show visible stroke when selected */
+.react-flow__edge.selected .react-flow__edge-path {
+  stroke: var(--blue-500, #3b82f6);
+  stroke-width: 2;
+  stroke-opacity: 1;
+}
+
+/* Make the interaction area more visible on hover */
+.react-flow__edge:hover .react-flow__edge-path {
+  stroke: var(--mono-400, #9ca3af);
+  stroke-opacity: 0.5;
+}
+
+/* Edge interaction area - ensure it's clickable */
+.react-flow__edge-interaction {
+  cursor: pointer;
+}
+
+/* Path error badge */
+.path-error-badge {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #dc2626;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  z-index: 100;
+}

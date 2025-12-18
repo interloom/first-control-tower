@@ -1,0 +1,1183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agentic Chat Prototype</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --mono-0: #ffffff;
+      --mono-50: #fafafa;
+      --mono-100: #f5f5f5;
+      --mono-200: #e5e5e5;
+      --mono-300: #d4d4d4;
+      --mono-400: #a3a3a3;
+      --mono-500: #737373;
+      --mono-600: #525252;
+      --mono-700: #404040;
+      --mono-800: #262626;
+      --mono-900: #171717;
+      --accent: #4f46e5;
+      --accent-light: #6366f1;
+      --thinking-bg: #fffbeb;
+      --thinking-border: #fcd34d;
+      --tool-bg: #f0fdf4;
+      --tool-border: #86efac;
+      --error-bg: #fef2f2;
+      --error-border: #fca5a5;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+      background: var(--mono-50);
+      min-height: 100vh;
+      color: var(--mono-800);
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background: var(--mono-0);
+      border-left: 1px solid var(--mono-200);
+      border-right: 1px solid var(--mono-200);
+    }
+
+    /* Header */
+    .header {
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--mono-200);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--mono-0);
+    }
+
+    .header-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--mono-800);
+    }
+
+    .header-title svg {
+      color: var(--accent);
+    }
+
+    .header-status {
+      font-size: 12px;
+      color: var(--mono-500);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--mono-300);
+    }
+
+    .status-dot.active {
+      background: #22c55e;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    /* Messages Area */
+    .messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    /* User Message */
+    .user-message {
+      background: var(--mono-100);
+      border: 1px solid var(--mono-200);
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin-left: 48px;
+    }
+
+    .user-message .message-label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--mono-500);
+      margin-bottom: 8px;
+    }
+
+    .user-message .message-content {
+      font-size: 14px;
+      line-height: 1.6;
+      color: var(--mono-800);
+    }
+
+    /* Agent Turn */
+    .agent-turn {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .turn-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--mono-500);
+    }
+
+    .turn-header svg {
+      color: var(--accent);
+    }
+
+    /* Move container */
+    .move {
+      border-radius: 8px;
+      overflow: hidden;
+      animation: slideIn 0.2s ease-out;
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(8px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Thinking Block */
+    .thinking-block {
+      background: var(--thinking-bg);
+      border: 1px solid var(--thinking-border);
+    }
+
+    .move-header {
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .thinking-block .move-header {
+      color: #92400e;
+    }
+
+    .move-header svg {
+      flex-shrink: 0;
+    }
+
+    .move-header .chevron {
+      margin-left: auto;
+      transition: transform 0.2s ease;
+    }
+
+    .move.collapsed .move-header .chevron {
+      transform: rotate(-90deg);
+    }
+
+    .move-content {
+      padding: 0 14px 14px 14px;
+      font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+      font-size: 13px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .move.collapsed .move-content {
+      display: none;
+    }
+
+    .thinking-block .move-content {
+      color: #78350f;
+      font-style: italic;
+    }
+
+    /* Tool Call Block */
+    .tool-block {
+      background: var(--tool-bg);
+      border: 1px solid var(--tool-border);
+    }
+
+    .tool-block .move-header {
+      color: #166534;
+    }
+
+    .tool-block .move-content {
+      color: #14532d;
+    }
+
+    .tool-name {
+      font-weight: 600;
+      font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    }
+
+    .tool-args {
+      margin-top: 8px;
+      padding: 10px 12px;
+      background: rgba(0, 0, 0, 0.04);
+      border-radius: 6px;
+      font-size: 12px;
+    }
+
+    .tool-result {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px dashed var(--tool-border);
+    }
+
+    .tool-result-label {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #166534;
+      margin-bottom: 6px;
+    }
+
+    .tool-result-content {
+      font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+      font-size: 12px;
+      color: var(--mono-700);
+      background: rgba(0, 0, 0, 0.04);
+      padding: 10px 12px;
+      border-radius: 6px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    /* Final Answer */
+    .final-answer {
+      padding: 16px 0 0 0;
+      font-size: 14px;
+      line-height: 1.7;
+      color: var(--mono-800);
+    }
+
+    .final-answer p {
+      margin-bottom: 12px;
+    }
+
+    .final-answer p:last-child {
+      margin-bottom: 0;
+    }
+
+    .final-answer code {
+      font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+      font-size: 13px;
+      background: var(--mono-100);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    /* Loading indicator */
+    .loading-indicator {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--mono-500);
+      padding: 8px 0;
+    }
+
+    .loading-dots {
+      display: flex;
+      gap: 4px;
+    }
+
+    .loading-dots span {
+      width: 6px;
+      height: 6px;
+      background: var(--accent);
+      border-radius: 50%;
+      animation: bounce 1.4s infinite ease-in-out;
+    }
+
+    .loading-dots span:nth-child(1) { animation-delay: -0.32s; }
+    .loading-dots span:nth-child(2) { animation-delay: -0.16s; }
+    .loading-dots span:nth-child(3) { animation-delay: 0s; }
+
+    @keyframes bounce {
+      0%, 80%, 100% { transform: scale(0.8); opacity: 0.5; }
+      40% { transform: scale(1); opacity: 1; }
+    }
+
+    /* Error block */
+    .error-block {
+      background: var(--error-bg);
+      border: 1px solid var(--error-border);
+      border-radius: 8px;
+      padding: 14px;
+      font-size: 13px;
+      color: #991b1b;
+    }
+
+    /* Input Area */
+    .input-area {
+      padding: 20px 24px;
+      border-top: 1px solid var(--mono-200);
+      background: var(--mono-50);
+    }
+
+    .input-container {
+      display: flex;
+      gap: 12px;
+      align-items: flex-end;
+    }
+
+    .input-wrapper {
+      flex: 1;
+      background: var(--mono-0);
+      border: 1px solid var(--mono-200);
+      border-radius: 12px;
+      overflow: hidden;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .input-wrapper:focus-within {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+    }
+
+    .input-wrapper textarea {
+      width: 100%;
+      padding: 14px 16px;
+      border: none;
+      font-family: inherit;
+      font-size: 14px;
+      line-height: 1.5;
+      resize: none;
+      background: transparent;
+      color: var(--mono-800);
+    }
+
+    .input-wrapper textarea::placeholder {
+      color: var(--mono-400);
+    }
+
+    .input-wrapper textarea:focus {
+      outline: none;
+    }
+
+    .send-button {
+      width: 44px;
+      height: 44px;
+      background: var(--accent);
+      border: none;
+      border-radius: 12px;
+      color: white;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s ease, transform 0.1s ease;
+    }
+
+    .send-button:hover {
+      background: var(--accent-light);
+    }
+
+    .send-button:active {
+      transform: scale(0.95);
+    }
+
+    .send-button:disabled {
+      background: var(--mono-300);
+      cursor: not-allowed;
+    }
+
+    /* Streaming text effect */
+    .streaming-text {
+      display: inline;
+    }
+
+    .streaming-cursor {
+      display: inline-block;
+      width: 2px;
+      height: 1em;
+      background: var(--accent);
+      margin-left: 2px;
+      animation: blink 1s infinite;
+      vertical-align: text-bottom;
+    }
+
+    @keyframes blink {
+      0%, 50% { opacity: 1; }
+      51%, 100% { opacity: 0; }
+    }
+
+    /* Turn divider */
+    .turn-divider {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 8px 0;
+    }
+
+    .turn-divider::before,
+    .turn-divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--mono-200);
+    }
+
+    .turn-divider span {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--mono-400);
+    }
+
+    /* Scrollbar */
+    .messages::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .messages::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .messages::-webkit-scrollbar-thumb {
+      background: var(--mono-300);
+      border-radius: 3px;
+    }
+
+    .messages::-webkit-scrollbar-thumb:hover {
+      background: var(--mono-400);
+    }
+
+    /* Move count badge */
+    .move-count {
+      font-size: 10px;
+      font-weight: 600;
+      background: var(--mono-200);
+      color: var(--mono-600);
+      padding: 2px 8px;
+      border-radius: 10px;
+      margin-left: auto;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <div class="header-title">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 8V4H8"/>
+          <rect width="16" height="12" x="4" y="8" rx="2"/>
+          <path d="M2 14h2"/>
+          <path d="M20 14h2"/>
+          <path d="M15 13v2"/>
+          <path d="M9 13v2"/>
+        </svg>
+        Agentic Chat
+      </div>
+      <div class="header-status">
+        <div class="status-dot" id="statusDot"></div>
+        <span id="statusText">Ready</span>
+      </div>
+    </header>
+
+    <main class="messages" id="messages">
+      <!-- Messages will be rendered here -->
+    </main>
+
+    <footer class="input-area">
+      <div class="input-container">
+        <div class="input-wrapper">
+          <textarea 
+            id="userInput" 
+            placeholder="Send a message..." 
+            rows="1"
+            onkeydown="handleKeyDown(event)"
+          ></textarea>
+        </div>
+        <button class="send-button" id="sendButton" onclick="sendMessage()">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m5 12 7-7 7 7"/>
+            <path d="M12 19V5"/>
+          </svg>
+        </button>
+      </div>
+    </footer>
+  </div>
+
+  <script>
+    // ========================================
+    // Configuration
+    // ========================================
+    const API_KEY = 'YOUR_API_KEY_HERE';
+    const MODEL = 'claude-sonnet-4-20250514';
+    const MAX_TOKENS = 4096;
+
+    // ========================================
+    // Tool Definitions
+    // ========================================
+    const tools = [
+      {
+        name: 'think',
+        description: 'Use this tool to think through a problem step by step. Use it for reasoning, planning, and working through complex logic before taking action.',
+        input_schema: {
+          type: 'object',
+          properties: {
+            thought: {
+              type: 'string',
+              description: 'Your internal reasoning or thought process'
+            }
+          },
+          required: ['thought']
+        }
+      },
+      {
+        name: 'read_file',
+        description: 'Read the contents of a file at the given path.',
+        input_schema: {
+          type: 'object',
+          properties: {
+            path: {
+              type: 'string',
+              description: 'The file path to read'
+            }
+          },
+          required: ['path']
+        }
+      },
+      {
+        name: 'search_codebase',
+        description: 'Search for code patterns or text in the codebase.',
+        input_schema: {
+          type: 'object',
+          properties: {
+            query: {
+              type: 'string',
+              description: 'The search query or pattern'
+            },
+            file_pattern: {
+              type: 'string',
+              description: 'Optional glob pattern to filter files (e.g., "*.ts")'
+            }
+          },
+          required: ['query']
+        }
+      },
+      {
+        name: 'execute_command',
+        description: 'Execute a shell command.',
+        input_schema: {
+          type: 'object',
+          properties: {
+            command: {
+              type: 'string',
+              description: 'The command to execute'
+            }
+          },
+          required: ['command']
+        }
+      },
+      {
+        name: 'list_files',
+        description: 'List files in a directory.',
+        input_schema: {
+          type: 'object',
+          properties: {
+            path: {
+              type: 'string',
+              description: 'The directory path to list'
+            }
+          },
+          required: ['path']
+        }
+      }
+    ];
+
+    // ========================================
+    // Mock Tool Responses
+    // ========================================
+    function getMockToolResponse(toolName, toolInput) {
+      switch (toolName) {
+        case 'think':
+          return 'Thought recorded.';
+        
+        case 'read_file':
+          const mockFiles = {
+            'src/App.tsx': `import { useState } from 'react'
+import { Canvas } from './components/Canvas'
+import { Header } from './components/Header'
+import './App.css'
+
+export function App() {
+  const [isLiveMode, setIsLiveMode] = useState(true)
+  return (
+    <div className="app">
+      <Header />
+      <Canvas isLiveMode={isLiveMode} />
+    </div>
+  )
+}`,
+            'package.json': `{
+  "name": "control-tower",
+  "version": "1.0.0",
+  "dependencies": {
+    "react": "^18.2.0",
+    "@xyflow/react": "^12.0.0"
+  }
+}`
+          };
+          return mockFiles[toolInput.path] || `File not found: ${toolInput.path}`;
+        
+        case 'search_codebase':
+          return `Found 3 matches for "${toolInput.query}":
+
+src/components/Canvas.tsx:42
+  const [nodes, setNodes] = useNodesState(initialNodes)
+
+src/components/Canvas.tsx:156
+  onNodesChange={onNodesChange}
+
+src/services/ParticleSystem.ts:23
+  private nodes: Map<string, NodePosition>`;
+        
+        case 'execute_command':
+          if (toolInput.command.includes('ls')) {
+            return `src/
+  components/
+  services/
+  App.tsx
+  main.tsx
+package.json
+vite.config.ts`;
+          }
+          if (toolInput.command.includes('npm')) {
+            return 'npm command executed successfully.';
+          }
+          return `Command executed: ${toolInput.command}\nOutput: Success`;
+        
+        case 'list_files':
+          return `Contents of ${toolInput.path}:
+- Canvas.tsx
+- Header.tsx
+- ChatPanel.tsx
+- nodes/
+  - InboxNode.tsx
+  - OutboxNode.tsx
+  - ProcedureNode.tsx`;
+        
+        default:
+          return 'Tool executed successfully.';
+      }
+    }
+
+    // ========================================
+    // State
+    // ========================================
+    let conversationHistory = [];
+    let isProcessing = false;
+
+    // ========================================
+    // DOM Elements
+    // ========================================
+    const messagesContainer = document.getElementById('messages');
+    const userInput = document.getElementById('userInput');
+    const sendButton = document.getElementById('sendButton');
+    const statusDot = document.getElementById('statusDot');
+    const statusText = document.getElementById('statusText');
+
+    // ========================================
+    // UI Helpers
+    // ========================================
+    function setStatus(status, active = false) {
+      statusText.textContent = status;
+      statusDot.classList.toggle('active', active);
+    }
+
+    function scrollToBottom() {
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+
+    function autoResizeTextarea() {
+      userInput.style.height = 'auto';
+      userInput.style.height = Math.min(userInput.scrollHeight, 150) + 'px';
+    }
+
+    userInput.addEventListener('input', autoResizeTextarea);
+
+    function handleKeyDown(event) {
+      if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        sendMessage();
+      }
+    }
+
+    // ========================================
+    // Rendering Functions
+    // ========================================
+    function renderUserMessage(content) {
+      const div = document.createElement('div');
+      div.className = 'user-message';
+      div.innerHTML = `
+        <div class="message-label">You</div>
+        <div class="message-content">${escapeHtml(content)}</div>
+      `;
+      messagesContainer.appendChild(div);
+      scrollToBottom();
+    }
+
+    function createAgentTurn() {
+      const div = document.createElement('div');
+      div.className = 'agent-turn';
+      div.innerHTML = `
+        <div class="turn-header">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 8V4H8"/>
+            <rect width="16" height="12" x="4" y="8" rx="2"/>
+            <path d="M2 14h2"/>
+            <path d="M20 14h2"/>
+            <path d="M15 13v2"/>
+            <path d="M9 13v2"/>
+          </svg>
+          Agent
+          <span class="move-count" id="moveCount">0 moves</span>
+        </div>
+      `;
+      messagesContainer.appendChild(div);
+      scrollToBottom();
+      return div;
+    }
+
+    function updateMoveCount(turnElement, count) {
+      const badge = turnElement.querySelector('#moveCount');
+      if (badge) {
+        badge.textContent = `${count} move${count !== 1 ? 's' : ''}`;
+      }
+    }
+
+    function addThinkingBlock(turnElement, thought) {
+      const move = document.createElement('div');
+      move.className = 'move thinking-block';
+      move.innerHTML = `
+        <div class="move-header" onclick="toggleMove(this)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M12 16v-4"/>
+            <path d="M12 8h.01"/>
+          </svg>
+          Thinking
+          <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m6 9 6 6 6-6"/>
+          </svg>
+        </div>
+        <div class="move-content">${escapeHtml(thought)}</div>
+      `;
+      turnElement.appendChild(move);
+      scrollToBottom();
+      return move;
+    }
+
+    function addToolCallBlock(turnElement, toolName, toolInput, toolResult = null) {
+      const move = document.createElement('div');
+      move.className = 'move tool-block';
+      
+      const iconMap = {
+        read_file: '<path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/>',
+        search_codebase: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+        execute_command: '<polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/>',
+        list_files: '<path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/>',
+        think: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>'
+      };
+      
+      const icon = iconMap[toolName] || iconMap.execute_command;
+      
+      let html = `
+        <div class="move-header" onclick="toggleMove(this)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            ${icon}
+          </svg>
+          <span class="tool-name">${toolName}</span>
+          <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m6 9 6 6 6-6"/>
+          </svg>
+        </div>
+        <div class="move-content">
+          <div class="tool-args">${escapeHtml(JSON.stringify(toolInput, null, 2))}</div>
+      `;
+      
+      if (toolResult !== null) {
+        html += `
+          <div class="tool-result">
+            <div class="tool-result-label">Result</div>
+            <div class="tool-result-content">${escapeHtml(toolResult)}</div>
+          </div>
+        `;
+      }
+      
+      html += '</div>';
+      move.innerHTML = html;
+      turnElement.appendChild(move);
+      scrollToBottom();
+      return move;
+    }
+
+    function addToolResult(moveElement, result) {
+      const content = moveElement.querySelector('.move-content');
+      const resultDiv = document.createElement('div');
+      resultDiv.className = 'tool-result';
+      resultDiv.innerHTML = `
+        <div class="tool-result-label">Result</div>
+        <div class="tool-result-content">${escapeHtml(result)}</div>
+      `;
+      content.appendChild(resultDiv);
+      scrollToBottom();
+    }
+
+    function addFinalAnswer(turnElement, text) {
+      const div = document.createElement('div');
+      div.className = 'final-answer';
+      // Simple markdown-like processing
+      const formatted = escapeHtml(text)
+        .replace(/`([^`]+)`/g, '<code>$1</code>')
+        .replace(/\n\n/g, '</p><p>')
+        .replace(/\n/g, '<br>');
+      div.innerHTML = `<p>${formatted}</p>`;
+      turnElement.appendChild(div);
+      scrollToBottom();
+    }
+
+    function addLoadingIndicator(turnElement) {
+      const div = document.createElement('div');
+      div.className = 'loading-indicator';
+      div.id = 'loadingIndicator';
+      div.innerHTML = `
+        <div class="loading-dots">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+        <span>Processing...</span>
+      `;
+      turnElement.appendChild(div);
+      scrollToBottom();
+      return div;
+    }
+
+    function removeLoadingIndicator() {
+      const indicator = document.getElementById('loadingIndicator');
+      if (indicator) {
+        indicator.remove();
+      }
+    }
+
+    function addErrorBlock(turnElement, error) {
+      const div = document.createElement('div');
+      div.className = 'error-block';
+      div.textContent = `Error: ${error}`;
+      turnElement.appendChild(div);
+      scrollToBottom();
+    }
+
+    function toggleMove(header) {
+      const move = header.parentElement;
+      move.classList.toggle('collapsed');
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // ========================================
+    // API Call with Streaming
+    // ========================================
+    async function callAnthropicAPI(messages) {
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'x-api-key': API_KEY,
+          'anthropic-version': '2023-06-01',
+          'content-type': 'application/json',
+          'anthropic-dangerous-direct-browser-access': 'true'
+        },
+        body: JSON.stringify({
+          model: MODEL,
+          max_tokens: MAX_TOKENS,
+          stream: true,
+          tools: tools,
+          system: `You are a helpful AI coding assistant. You have access to tools to help you accomplish tasks.
+
+When working on a problem:
+1. Use the 'think' tool to reason through complex problems before taking action
+2. Use other tools to gather information and make changes
+3. After completing your work, provide a clear summary of what you did
+
+Be concise but thorough. When you're done with your task, provide a final summary without using any tools.`,
+          messages: messages
+        })
+      });
+
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(`API error: ${response.status} - ${error}`);
+      }
+
+      return response;
+    }
+
+    // ========================================
+    // Stream Processing
+    // ========================================
+    async function processStream(response, turnElement, moveCount) {
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      
+      let buffer = '';
+      let currentBlockType = null;
+      let currentBlockIndex = -1;
+      let toolUseBlocks = [];
+      let textContent = '';
+      let currentToolInput = '';
+      let currentMoveElement = null;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6);
+            if (data === '[DONE]') continue;
+
+            try {
+              const event = JSON.parse(data);
+              
+              switch (event.type) {
+                case 'content_block_start':
+                  currentBlockIndex = event.index;
+                  if (event.content_block.type === 'tool_use') {
+                    currentBlockType = 'tool_use';
+                    currentToolInput = '';
+                    toolUseBlocks[currentBlockIndex] = {
+                      id: event.content_block.id,
+                      name: event.content_block.name,
+                      input: {}
+                    };
+                    // We'll add the block when we have the input
+                  } else if (event.content_block.type === 'text') {
+                    currentBlockType = 'text';
+                  }
+                  break;
+
+                case 'content_block_delta':
+                  if (event.delta.type === 'text_delta') {
+                    textContent += event.delta.text;
+                  } else if (event.delta.type === 'input_json_delta') {
+                    currentToolInput += event.delta.partial_json;
+                  }
+                  break;
+
+                case 'content_block_stop':
+                  if (currentBlockType === 'tool_use' && toolUseBlocks[currentBlockIndex]) {
+                    try {
+                      toolUseBlocks[currentBlockIndex].input = JSON.parse(currentToolInput);
+                    } catch {
+                      toolUseBlocks[currentBlockIndex].input = { raw: currentToolInput };
+                    }
+                    
+                    const block = toolUseBlocks[currentBlockIndex];
+                    removeLoadingIndicator();
+                    
+                    // Special handling for think tool
+                    if (block.name === 'think') {
+                      addThinkingBlock(turnElement, block.input.thought || '');
+                    } else {
+                      addToolCallBlock(turnElement, block.name, block.input);
+                    }
+                    
+                    moveCount++;
+                    updateMoveCount(turnElement, moveCount);
+                    addLoadingIndicator(turnElement);
+                  }
+                  currentBlockType = null;
+                  break;
+
+                case 'message_stop':
+                  // Message complete
+                  break;
+              }
+            } catch (e) {
+              // Skip invalid JSON
+            }
+          }
+        }
+      }
+
+      removeLoadingIndicator();
+      return { toolUseBlocks, textContent, moveCount };
+    }
+
+    // ========================================
+    // Agent Turn Loop
+    // ========================================
+    async function runAgentTurn(userMessage) {
+      isProcessing = true;
+      sendButton.disabled = true;
+      setStatus('Processing...', true);
+
+      // Add user message to history
+      conversationHistory.push({
+        role: 'user',
+        content: userMessage
+      });
+
+      // Render user message
+      renderUserMessage(userMessage);
+
+      // Create agent turn container
+      const turnElement = createAgentTurn();
+      addLoadingIndicator(turnElement);
+
+      let moveCount = 0;
+      let continueLoop = true;
+
+      try {
+        while (continueLoop) {
+          const response = await callAnthropicAPI(conversationHistory);
+          const result = await processStream(response, turnElement, moveCount);
+          moveCount = result.moveCount;
+
+          // Check if there are tool calls to process
+          const toolCalls = result.toolUseBlocks.filter(b => b && b.id);
+          
+          if (toolCalls.length > 0) {
+            // Add assistant message with tool use to history
+            const assistantContent = [];
+            
+            if (result.textContent) {
+              assistantContent.push({ type: 'text', text: result.textContent });
+            }
+            
+            for (const tool of toolCalls) {
+              assistantContent.push({
+                type: 'tool_use',
+                id: tool.id,
+                name: tool.name,
+                input: tool.input
+              });
+            }
+            
+            conversationHistory.push({
+              role: 'assistant',
+              content: assistantContent
+            });
+
+            // Process tool results
+            const toolResults = [];
+            for (const tool of toolCalls) {
+              const mockResult = getMockToolResponse(tool.name, tool.input);
+              toolResults.push({
+                type: 'tool_result',
+                tool_use_id: tool.id,
+                content: mockResult
+              });
+
+              // Update UI with result (skip for think tool)
+              if (tool.name !== 'think') {
+                const toolBlocks = turnElement.querySelectorAll('.tool-block');
+                const lastToolBlock = toolBlocks[toolBlocks.length - 1];
+                if (lastToolBlock && !lastToolBlock.querySelector('.tool-result')) {
+                  addToolResult(lastToolBlock, mockResult);
+                }
+              }
+            }
+
+            // Add tool results to history
+            conversationHistory.push({
+              role: 'user',
+              content: toolResults
+            });
+
+            // Continue the loop
+            addLoadingIndicator(turnElement);
+            setStatus(`Move ${moveCount + 1}...`, true);
+          } else {
+            // No tool calls - this is the final response
+            continueLoop = false;
+            
+            if (result.textContent) {
+              addFinalAnswer(turnElement, result.textContent);
+              conversationHistory.push({
+                role: 'assistant',
+                content: result.textContent
+              });
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        removeLoadingIndicator();
+        addErrorBlock(turnElement, error.message);
+      }
+
+      isProcessing = false;
+      sendButton.disabled = false;
+      setStatus('Ready');
+      updateMoveCount(turnElement, moveCount);
+    }
+
+    // ========================================
+    // Send Message
+    // ========================================
+    function sendMessage() {
+      const message = userInput.value.trim();
+      if (!message || isProcessing) return;
+
+      userInput.value = '';
+      autoResizeTextarea();
+      
+      runAgentTurn(message);
+    }
+
+    // ========================================
+    // Initialize
+    // ========================================
+    userInput.focus();
+  </script>
+</body>
+</html>

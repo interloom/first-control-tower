@@ -1,0 +1,61 @@
+.case-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 50;
+  overflow: hidden;
+}
+
+.case-dot {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: #6366f1;
+  border-radius: 50%;
+  box-shadow: 0 0 6px rgba(99, 102, 241, 0.5);
+  pointer-events: none;
+  transition: left 0.05s linear, top 0.05s linear;
+}
+
+.case-dot.transitioning {
+  background: #818cf8;
+  box-shadow: 0 0 10px rgba(99, 102, 241, 0.8);
+  width: 10px;
+  height: 10px;
+  margin-left: -1px;
+  margin-top: -1px;
+}
+
+.case-dot.stage {
+  width: 6px;
+  height: 6px;
+  background: #a5b4fc;
+  box-shadow: 0 0 4px rgba(99, 102, 241, 0.4);
+}
+
+.case-dot.at_inbox {
+  background: #f97316;
+  box-shadow: 0 0 6px rgba(249, 115, 22, 0.5);
+}
+
+.case-dot.at_outbox {
+  background: #22c55e;
+  box-shadow: 0 0 6px rgba(34, 197, 94, 0.5);
+}
+
+/* Subtle pulse animation for waiting dots */
+@keyframes dot-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.case-dot.at_inbox,
+.case-dot.at_outbox {
+  animation: dot-pulse 1.5s ease-in-out infinite;
+}
+
+

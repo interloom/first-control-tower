@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>React Flow + Canvas Overlay - Reference Implementation</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0a0a1a;
+      height: 100vh;
+      overflow: hidden;
+    }
+    #root { height: 100%; }
+    .flow-container { width: 100%; height: 100%; position: relative; }
+    .react-flow { background: linear-gradient(135deg, #0a0a1a 0%, #1a1a2e 50%, #0f0f23 100%); }
+    .react-flow__node {
+      background: rgba(30, 30, 50, 0.9);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 8px;
+      padding: 12px 20px;
+      color: #fff;
+      font-size: 13px;
+    }
+    .react-flow__edge-path { stroke: rgba(255, 255, 255, 0.15); stroke-width: 2; }
+    .react-flow__handle { width: 8px; height: 8px; background: rgba(255, 255, 255, 0.3); border: none; }
+
+    /* IMPORTANT: Canvas must be positioned above React Flow with pointer-events disabled */
+    .particle-canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 5;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "react": "https://esm.sh/react@18.2.0",
+      "react-dom": "https://esm.sh/react-dom@18.2.0",
+      "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+      "reactflow": "https://esm.sh/reactflow@11.10.1?external=react,react-dom"
+    }
+  }
+  </script>
+  <link href="https://esm.sh/reactflow@11.10.1/dist/style.css" rel="stylesheet" />
+
+  <script type="module">
+/*
+================================================================================
+IMPLEMENTATION GUIDE FOR CONTROL TOWER APP
+================================================================================
+
+OVERVIEW:
+This prototype demonstrates particle trail animations overlaid on React Flow.
+Cases (particles) flow along edges between nodes, leaving fading trails.
+
+ARCHITECTURE:
+┌─────────────────────────────────────────────────────────────────────┐
+│  React Flow Container                                                │
+│  ┌───────────────────────────────────────────────────────────────┐  │
+│  │  <canvas> (pointer-events: none, z-index: 5)                  │  │
+│  │  - Renders particles and trails                               │  │
+│  │  - Transforms match React Flow viewport (pan/zoom)            │  │
+│  └───────────────────────────────────────────────────────────────┘  │
+│  ┌───────────────────────────────────────────────────────────────┐  │
+│  │  React Flow (nodes + edges)                                   │  │
+│  │  - Handles all interaction (drag, pan, zoom, selection)       │  │
+│  └───────────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────────┘
+
+FILES TO CREATE:
+1. src/services/ParticleSystem.ts   - Core particle simulation logic (copy class below)
+2. src/components/ParticleCanvas.tsx - React component wrapping canvas
+3. src/hooks/useParticleSystem.ts   - Hook to manage particle system lifecycle
+
+KEY INTEGRATION POINTS:
+- ParticleCanvas must be a CHILD of <ReactFlow> to access viewport via useStore
+- Edge paths are computed from node positions + handle locations
+- Animation loop runs independently of React render cycle
+- Viewport transform is read each frame (not via React state)
+
+================================================================================
+*/
+
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { createRoot } from 'react-dom/client';
+import ReactFlow, {
+  ReactFlowProvider,
+  useNodesState,
+  useEdgesState,
+  useReactFlow,
+  useStore
+} from 'reactflow';
+
+
+// ============================================================================
+// PARTICLE SYSTEM CLASS
+// ============================================================================
+// Copy this to: src/services/ParticleSystem.ts
+// This is framework-agnostic - pure JavaScript/TypeScript
+// ============================================================================
+
+/**
+ * @typedef {Object} EdgePath
+ * @property {number} sourceX - Starting X coordinate
+ * @property {number} sourceY - Starting Y coordinate  
+ * @property {number} targetX - Ending X coordinate
+ * @property {number} targetY - Ending Y coordinate
+ */
+
+/**
+ * @typedef {Object} Particle
+ * @property {string} id - Unique identifier
+ * @property {string[]} edgePath - Array of edge IDs this particle will traverse
+ * @property {number} edgeIndex - Current index in edgePath
+ * @property {number} progress - 0-1 progress along current edge
+ * @property {number} speed - Speed multiplier (varies per particle)
+ * @property {string} color - Hex color
+ * @property {{x: number, y: number}[]} trail - Recent positions for trail rendering
+ * @property {number} maxTrailLength - Max trail points to keep
+ * @property {number} size - Particle radius in pixels
+ */
+
+/**
+ * @typedef {Object} Viewport
+ * @property {number} x - Pan X offset
+ * @property {number} y - Pan Y offset
+ * @property {number} zoom - Zoom level
+ */
+
+class ParticleSystem {
+  constructor(config = {}) {
+    /** @type {Particle[]} */
+    this.particles = [];
+    
+    /** @type {Map<string, EdgePath>} */
+    this.edgePaths = new Map();
+    
+    /** @type {Map<string, {edgeId: string, target: string, weight: number}[]>} */
+    this.adjacency = new Map();
+    
+    // Configuration with defaults
+    this.config = {
+      maxParticles: config.maxParticles ?? 50,
+      spawnRate: config.spawnRate ?? 5,          // particles per second
+      flowSpeed: config.flowSpeed ?? 1,          // speed multiplier
+      colors: config.colors ?? ['#6366f1', '#8b5cf6', '#a78bfa'],
+      trailLength: config.trailLength ?? 30,
+      particleSizeRange: config.particleSizeRange ?? [3, 5],
+      speedVariation: config.speedVariation ?? [0.3, 0.7],
+      startNodeId: config.startNodeId ?? null,   // Set this to your inbox/start node ID
+    };
+    
+    // Internal state
+    this._lastSpawnTime = 0;
+    this._completedCount = 0;
+    this._recentCompletions = [];
+  }
+
+  // ---------------------------------------------------------------------------
+  // CONFIGURATION METHODS - Call these to update settings
+  // ---------------------------------------------------------------------------
+
+  setEdgePaths(paths) {
+    this.edgePaths = paths;
+  }
+
+  /**
+   * Build adjacency graph from React Flow edges
+   * @param {Array<{id: string, source: string, target: string, data?: {weight?: number}}>} edges
+   */
+  buildAdjacency(edges) {
+    this.adjacency.clear();
+    edges.forEach(edge => {
+      if (!this.adjacency.has(edge.source)) {
+        this.adjacency.set(edge.source, []);
+      }
+      this.adjacency.get(edge.source).push({
+        edgeId: edge.id,
+        target: edge.target,
+        weight: edge.data?.weight ?? 1  // Default weight = 1 (equal probability)
+      });
+    });
+  }
+
+  updateConfig(updates) {
+    Object.assign(this.config, updates);
+  }
+
+  // ---------------------------------------------------------------------------
+  // CORE SIMULATION - Called every animation frame
+  // ---------------------------------------------------------------------------
+
+  /**
+   * @param {number} dt - Delta time in milliseconds
+   * @param {number} time - Current timestamp
+   */
+  update(dt, time) {
+    this._spawnParticle(time);
+    this._updateParticles(dt);
+    this._cleanupCompletions();
+  }
+
+  _spawnParticle(time) {
+    if (!this.config.startNodeId) return;
+    if (this.particles.length >= this.config.maxParticles) return;
+
+    const spawnInterval = 1000 / this.config.spawnRate;
+    if (time - this._lastSpawnTime < spawnInterval) return;
+
+    this._lastSpawnTime = time;
+
+    const edgePath = this._generatePath(this.config.startNodeId);
+    if (edgePath.length === 0) return;
+
+    const [minSize, maxSize] = this.config.particleSizeRange;
+    const [minSpeed, maxSpeed] = this.config.speedVariation;
+
+    this.particles.push({
+      id: Math.random().toString(36).substr(2, 9),
+      edgePath,
+      edgeIndex: 0,
+      progress: 0,
+      speed: minSpeed + Math.random() * (maxSpeed - minSpeed),
+      color: this.config.colors[Math.floor(Math.random() * this.config.colors.length)],
+      trail: [],
+      maxTrailLength: this.config.trailLength,
+      size: minSize + Math.random() * (maxSize - minSize)
+    });
+  }
+
+  /**
+   * Generate a random path through the graph following edge weights
+   */
+  _generatePath(startNodeId) {
+    const path = [];
+    let current = startNodeId;
+
+    while (this.adjacency.has(current) && this.adjacency.get(current).length > 0) {
+      const edges = this.adjacency.get(current);
+      
+      // Weighted random selection
+      const totalWeight = edges.reduce((sum, e) => sum + e.weight, 0);
+      let r = Math.random() * totalWeight;
+      let chosen = edges[0];
+
+      for (const edge of edges) {
+        r -= edge.weight;
+        if (r <= 0) {
+          chosen = edge;
+          break;
+        }
+      }
+
+      path.push(chosen.edgeId);
+      current = chosen.target;
+    }
+
+    return path;
+  }
+
+  _updateParticles(dt) {
+    const toRemove = [];
+
+    this.particles.forEach((p, index) => {
+      // Check if particle completed all edges
+      if (p.edgeIndex >= p.edgePath.length) {
+        toRemove.push(index);
+        this._completedCount++;
+        this._recentCompletions.push(Date.now());
+        return;
+      }
+
+      // Advance progress
+      const speedMultiplier = this.config.flowSpeed * p.speed;
+      p.progress += dt * speedMultiplier * 0.001;
+
+      // Get position along current edge
+      const currentEdgeId = p.edgePath[p.edgeIndex];
+      const edgeData = this.edgePaths.get(currentEdgeId);
+
+      if (edgeData) {
+        const pos = this._getPositionAlongEdge(edgeData, p.progress);
+        if (pos) {
+          p.trail.unshift({ x: pos.x, y: pos.y });
+          if (p.trail.length > p.maxTrailLength) {
+            p.trail.pop();
+          }
+        }
+      }
+
+      // Move to next edge when progress >= 1
+      if (p.progress >= 1) {
+        p.progress = 0;
+        p.edgeIndex++;
+      }
+    });
+
+    // Remove completed particles (reverse order to maintain indices)
+    toRemove.reverse().forEach(i => this.particles.splice(i, 1));
+  }
+
+  /**
+   * Calculate position along a bezier curve
+   * Uses same curve shape as React Flow's default bezier edges
+   */
+  _getPositionAlongEdge(edgeData, t) {
+    const { sourceX, sourceY, targetX, targetY } = edgeData;
+    
+    // Control points for cubic bezier (matches React Flow's bezier edge)
+    const centerX = (sourceX + targetX) / 2;
+    const p0 = { x: sourceX, y: sourceY };
+    const p1 = { x: centerX, y: sourceY };  // Horizontal from source
+    const p2 = { x: centerX, y: targetY };  // Vertical to target height
+    const p3 = { x: targetX, y: targetY };
+
+    // Cubic bezier formula
+    const mt = 1 - t;
+    const mt2 = mt * mt;
+    const mt3 = mt2 * mt;
+    const t2 = t * t;
+    const t3 = t2 * t;
+
+    return {
+      x: mt3 * p0.x + 3 * mt2 * t * p1.x + 3 * mt * t2 * p2.x + t3 * p3.x,
+      y: mt3 * p0.y + 3 * mt2 * t * p1.y + 3 * mt * t2 * p2.y + t3 * p3.y
+    };
+  }
+
+  _cleanupCompletions() {
+    const fiveSecondsAgo = Date.now() - 5000;
+    this._recentCompletions = this._recentCompletions.filter(t => t > fiveSecondsAgo);
+  }
+
+  // ---------------------------------------------------------------------------
+  // RENDERING - Called every animation frame after update()
+  // ---------------------------------------------------------------------------
+
+  /**
+   * @param {CanvasRenderingContext2D} ctx
+   * @param {Viewport} viewport - From React Flow's transform
+   * @param {number} canvasWidth
+   * @param {number} canvasHeight
+   */
+  draw(ctx, viewport, canvasWidth, canvasHeight) {
+    const { x: panX, y: panY, zoom } = viewport;
+
+    ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+    ctx.save();
+    
+    // Apply React Flow's viewport transform
+    ctx.translate(panX, panY);
+    ctx.scale(zoom, zoom);
+
+    this._drawTrails(ctx);
+    this._drawParticles(ctx);
+
+    ctx.restore();
+  }
+
+  _drawTrails(ctx) {
+    this.particles.forEach(p => {
+      if (p.trail.length < 2) return;
+
+      ctx.beginPath();
+      ctx.moveTo(p.trail[0].x, p.trail[0].y);
+
+      for (let i = 1; i < p.trail.length; i++) {
+        ctx.lineTo(p.trail[i].x, p.trail[i].y);
+      }
+
+      // Gradient from solid to transparent
+      const gradient = ctx.createLinearGradient(
+        p.trail[0].x, p.trail[0].y,
+        p.trail[p.trail.length - 1].x, p.trail[p.trail.length - 1].y
+      );
+      gradient.addColorStop(0, p.color);
+      gradient.addColorStop(1, 'transparent');
+
+      ctx.strokeStyle = gradient;
+      ctx.lineWidth = p.size * 0.8;
+      ctx.lineCap = 'round';
+      ctx.stroke();
+    });
+  }
+
+  _drawParticles(ctx) {
+    this.particles.forEach(p => {
+      if (p.trail.length === 0) return;
+      const pos = p.trail[0];
+
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(pos.x, pos.y, p.size, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // STATISTICS - For UI display
+  // ---------------------------------------------------------------------------
+
+  getStats() {
+    return {
+      activeCount: this.particles.length,
+      completedCount: this._completedCount,
+      throughputPerSecond: (this._recentCompletions.length / 5).toFixed(1)
+    };
+  }
+}
+
+
+// ============================================================================
+// REACT INTEGRATION - ParticleCanvas Component
+// ============================================================================
+// Copy this to: src/components/ParticleCanvas.tsx
+// Must be rendered as a CHILD of <ReactFlow> to access store
+// ============================================================================
+
+/**
+ * Computes edge connection points from React Flow nodes
+ * Handles different source handle positions (right, top, bottom)
+ */
+function computeEdgePaths(nodes, edges) {
+  // Build node lookup with dimensions
+  const nodeMap = new Map();
+  nodes.forEach(node => {
+    const el = document.querySelector(`[data-id="${node.id}"]`);
+    nodeMap.set(node.id, {
+      ...node,
+      width: el?.offsetWidth ?? 100,
+      height: el?.offsetHeight ?? 40
+    });
+  });
+
+  // Calculate bezier start/end points for each edge
+  const edgePaths = new Map();
+  edges.forEach(edge => {
+    const sourceNode = nodeMap.get(edge.source);
+    const targetNode = nodeMap.get(edge.target);
+    if (!sourceNode || !targetNode) return;
+
+    // Default: right side of source
+    let sourceX = sourceNode.position.x + sourceNode.width;
+    let sourceY = sourceNode.position.y + sourceNode.height / 2;
+
+    // Handle different source handle positions
+    if (edge.sourceHandle === 'b' || edge.sourceHandle === 'top') {
+      sourceX = sourceNode.position.x + sourceNode.width / 2;
+      sourceY = sourceNode.position.y;
+    } else if (edge.sourceHandle === 'c' || edge.sourceHandle === 'bottom') {
+      sourceX = sourceNode.position.x + sourceNode.width / 2;
+      sourceY = sourceNode.position.y + sourceNode.height;
+    }
+
+    // Target: left side of target node
+    const targetX = targetNode.position.x;
+    const targetY = targetNode.position.y + targetNode.height / 2;
+
+    edgePaths.set(edge.id, { sourceX, sourceY, targetX, targetY });
+  });
+
+  return edgePaths;
+}
+
+function ParticleCanvas({ particleSystem }) {
+  const canvasRef = useRef(null);
+  const { getNodes, getEdges } = useReactFlow();
+  
+  // Access React Flow store for viewport transform
+  // We read this via callback to avoid re-running the effect
+  const storeApi = useStore(state => state);
+  
+  const getViewport = useCallback(() => ({
+    x: storeApi.transform[0],
+    y: storeApi.transform[1],
+    zoom: storeApi.transform[2]
+  }), [storeApi]);
+
+  const updateEdgePaths = useCallback(() => {
+    const nodes = getNodes();
+    const edges = getEdges();
+    const edgePaths = computeEdgePaths(nodes, edges);
+    particleSystem.setEdgePaths(edgePaths);
+    particleSystem.buildAdjacency(edges);
+  }, [getNodes, getEdges, particleSystem]);
+
+  // Single animation loop - runs continuously, reads state each frame
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    let lastTime = null;
+    let animationId;
+    let canvasWidth, canvasHeight;
+
+    function resize() {
+      const container = canvas.parentElement;
+      canvasWidth = container.clientWidth;
+      canvasHeight = container.clientHeight;
+      canvas.width = canvasWidth * devicePixelRatio;
+      canvas.height = canvasHeight * devicePixelRatio;
+      canvas.style.width = canvasWidth + 'px';
+      canvas.style.height = canvasHeight + 'px';
+      ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+    }
+
+    resize();
+    window.addEventListener('resize', resize);
+
+    function animate(time) {
+      if (lastTime === null) lastTime = time;
+      const dt = Math.min(time - lastTime, 100);
+      lastTime = time;
+
+      // Update edge paths (reads current node positions)
+      updateEdgePaths();
+      
+      // Get current viewport
+      const viewport = getViewport();
+
+      // Run simulation and render
+      particleSystem.update(dt, time);
+      particleSystem.draw(ctx, viewport, canvasWidth, canvasHeight);
+
+      animationId = requestAnimationFrame(animate);
+    }
+
+    animationId = requestAnimationFrame(animate);
+
+    return () => {
+      window.removeEventListener('resize', resize);
+      cancelAnimationFrame(animationId);
+    };
+  }, [particleSystem, updateEdgePaths, getViewport]);
+
+  return React.createElement('canvas', { 
+    ref: canvasRef, 
+    className: 'particle-canvas' 
+  });
+}
+
+
+// ============================================================================
+// DEMO APPLICATION
+// ============================================================================
+// This section is just for demonstration - adapt to your actual app structure
+// ============================================================================
+
+// Demo graph - using React Flow's built-in 'default' node type
+const demoNodes = [
+  { id: 'inbox', position: { x: 50, y: 150 }, data: { label: 'Inbox' } },
+  { id: 'process1', position: { x: 250, y: 100 }, data: { label: 'Process A' } },
+  { id: 'process2', position: { x: 250, y: 200 }, data: { label: 'Process B' } },
+  { id: 'review', position: { x: 450, y: 150 }, data: { label: 'Review' } },
+  { id: 'outbox', position: { x: 650, y: 150 }, data: { label: 'Complete' } },
+];
+
+const demoEdges = [
+  { id: 'e1', source: 'inbox', target: 'process1', data: { weight: 0.6 } },
+  { id: 'e2', source: 'inbox', target: 'process2', data: { weight: 0.4 } },
+  { id: 'e3', source: 'process1', target: 'review' },
+  { id: 'e4', source: 'process2', target: 'review' },
+  { id: 'e5', source: 'review', target: 'outbox' },
+];
+
+function Flow() {
+  const [nodes, , onNodesChange] = useNodesState(demoNodes);
+  const [edges, , onEdgesChange] = useEdgesState(demoEdges);
+  
+  // Create particle system with config
+  const [particleSystem] = useState(() => new ParticleSystem({
+    startNodeId: 'inbox',  // IMPORTANT: Set this to your actual start node
+    maxParticles: 50,
+    spawnRate: 5,
+    flowSpeed: 1,
+    colors: ['#6366f1', '#8b5cf6', '#a78bfa'],
+  }));
+
+  return React.createElement('div', { className: 'flow-container' },
+    React.createElement(ReactFlow, {
+      nodes,
+      edges,
+      onNodesChange,
+      onEdgesChange,
+      fitView: true
+    },
+      // ParticleCanvas MUST be a child of ReactFlow
+      React.createElement(ParticleCanvas, { particleSystem })
+    )
+  );
+}
+
+function App() {
+  return React.createElement(ReactFlowProvider, null,
+    React.createElement(Flow)
+  );
+}
+
+createRoot(document.getElementById('root')).render(React.createElement(App));
+  </script>
+</body>
+</html>

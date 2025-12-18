@@ -1,0 +1,46 @@
+.case-dot {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: #6366f1;
+  border-radius: 50%;
+  box-shadow: 0 0 6px rgba(99, 102, 241, 0.5);
+  pointer-events: none;
+  z-index: 50;
+  transition: transform 0.05s linear;
+}
+
+.case-dot.transitioning {
+  background: #818cf8;
+  box-shadow: 0 0 8px rgba(99, 102, 241, 0.7);
+}
+
+/* Animation pulse for dots at rest */
+@keyframes case-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.15);
+    opacity: 0.9;
+  }
+}
+
+.case-dot:not(.transitioning) {
+  animation: case-pulse 2s ease-in-out infinite;
+}
+
+/* Stage dot inside procedure nodes */
+.case-dot-stage {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background: #6366f1;
+  border-radius: 50%;
+  box-shadow: 0 0 4px rgba(99, 102, 241, 0.5);
+  pointer-events: none;
+  z-index: 10;
+}
+
+

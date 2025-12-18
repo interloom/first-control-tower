@@ -1,0 +1,117 @@
+.context-menu {
+  position: absolute;
+  z-index: 1000;
+  min-width: 180px;
+  background: var(--mono-0);
+  border: 1px solid var(--alpha-film-150);
+  border-radius: 10px;
+  box-shadow: 
+    0 4px 16px var(--alpha-film-200),
+    0 0 0 1px var(--alpha-film-50);
+  overflow: hidden;
+  animation: contextMenuFadeIn 0.15s ease;
+}
+
+@keyframes contextMenuFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.context-menu-header {
+  padding: 10px 12px 6px;
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--mono-400);
+}
+
+.context-menu-items {
+  padding: 4px;
+}
+
+.context-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--mono-700);
+  transition: background 0.1s ease;
+}
+
+.context-menu-item:hover {
+  background: var(--mono-100);
+}
+
+.context-menu-icon {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  box-shadow: 
+    inset 0 0 0 1px var(--alpha-film-150),
+    0 1px 2px var(--alpha-film-100);
+}
+
+.context-menu-icon.file {
+  background: linear-gradient(135deg, var(--yellow-100) 0%, #fef3c7 100%);
+  color: #ca8a04;
+}
+
+.context-menu-icon.procedure {
+  background: linear-gradient(135deg, var(--indigo-100) 0%, #c7d2fe 100%);
+  color: var(--indigo-500);
+}
+
+.context-menu-icon.agent {
+  background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+  color: #16a34a;
+}
+
+.context-menu-icon.table-item {
+  background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+  color: #15803d;
+}
+
+.context-menu-icon.chart-item {
+  background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
+  color: #4f46e5;
+}
+
+.context-menu-icon.folder-item {
+  background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
+  color: #0284c7;
+}
+
+.context-menu-icon.marker-item {
+  background: linear-gradient(135deg, var(--mono-100) 0%, var(--mono-200) 100%);
+  color: var(--mono-500);
+  border: 1px dashed var(--mono-300);
+  box-shadow: none;
+}
+
+.context-menu-icon.case-item {
+  background: linear-gradient(135deg, #fed7aa 0%, #fdba74 100%);
+  color: #ea580c;
+}
+
+.context-menu-icon.event-stream-item {
+  background: linear-gradient(135deg, #ccfbf1 0%, #99f6e4 100%);
+  color: #0d9488;
+}
+

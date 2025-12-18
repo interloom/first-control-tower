@@ -1,0 +1,15 @@
+.app {
+  display: flex;
+  width: 100%;
+  height: 100vh;
+  background: var(--mono-50);
+  overflow: hidden;
+}
+
+.main-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+

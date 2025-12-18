@@ -1,0 +1,85 @@
+:root {
+  /* Mono colors */
+  --mono-0: #ffffff;
+  --mono-50: #fafaf9;
+  --mono-100: #f5f5f4;
+  --mono-200: #e7e5e4;
+  --mono-300: #d6d3d1;
+  --mono-400: #a8a29e;
+  --mono-500: #78716c;
+  --mono-600: #57534e;
+  --mono-700: #44403c;
+  --mono-800: #292524;
+  --mono-900: #1c1917;
+
+  /* Blue colors */
+  --blue-50: #f4faff;
+  --blue-100: #eaf5fc;
+  --blue-200: #bddaf8;
+  --blue-300: #8fc3f4;
+  --blue-400: #4f98f1;
+  --blue-500: #3470ad;
+
+  /* Indigo colors */
+  --indigo-100: #e0e5ff;
+  --indigo-500: #6382f1;
+
+  /* Red colors */
+  --red-100: #fee2e2;
+  --red-500: #ef4444;
+
+  /* Orange colors */
+  --orange-100: #ffead4;
+  --orange-500: #ef6c40;
+
+  /* Yellow colors */
+  --yellow-100: #fef9c3;
+
+  /* Alpha colors */
+  --alpha-film-50: rgba(0, 0, 0, 0.02);
+  --alpha-film-100: rgba(0, 0, 0, 0.06);
+  --alpha-film-150: rgba(0, 0, 0, 0.09);
+  --alpha-film-200: rgba(0, 0, 0, 0.12);
+  --alpha-film-300: rgba(0, 0, 0, 0.16);
+  --alpha-film-500: rgba(0, 0, 0, 0.55);
+  --alpha-film-700: rgba(0, 0, 0, 0.75);
+  --alpha-film-inverted-400: rgba(255, 255, 255, 0.83);
+  --alpha-film-inverted-800: rgba(255, 255, 255, 0.99);
+
+  /* Spacing */
+  --spacing-xs: 2px;
+  --spacing-sm: 4px;
+  --spacing-md: 6px;
+  --spacing-lg: 8px;
+  --spacing-xl: 12px;
+  --spacing-2xl: 16px;
+  --spacing-3xl: 20px;
+  --spacing-4xl: 24px;
+
+  /* Border radius */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-full: 9999px;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--mono-50);
+  color: var(--mono-700);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+}
+

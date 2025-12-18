@@ -1,0 +1,97 @@
+/* Shared node pill component */
+.node-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: var(--mono-200);
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--mono-700);
+  white-space: nowrap;
+  cursor: default;
+  user-select: all;
+  vertical-align: baseline;
+  line-height: 1.4;
+}
+
+.node-pill svg {
+  flex-shrink: 0;
+  color: var(--mono-500);
+}
+
+.node-pill > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Remove button */
+.node-pill-remove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  margin-left: 2px;
+  margin-right: -4px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  color: var(--mono-400);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.node-pill-remove:hover {
+  background: var(--mono-400);
+  color: var(--mono-0);
+}
+
+.node-pill:hover {
+  background: var(--mono-300);
+}
+
+/* Context pill variant (shows current object being viewed, e.g. Space) */
+.node-pill.context-pill {
+  background: var(--mono-100);
+  color: var(--mono-500);
+  font-weight: 400;
+}
+
+.node-pill.context-pill svg {
+  color: var(--mono-400);
+}
+
+.node-pill.context-pill:hover {
+  background: var(--mono-200);
+}
+
+/* Selection pill variant (in chat input area) */
+.node-pill.selection-pill {
+  max-width: 100%;
+  animation: pillFadeIn 0.15s ease-out;
+}
+
+@keyframes pillFadeIn {
+  0% {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Mention pill variant (inline in editor) */
+.node-pill.mention-pill {
+  margin: 0 1px;
+}
+
+.node-pill.mention-pill:focus {
+  outline: 2px solid var(--blue-400);
+  outline-offset: 1px;
+}
