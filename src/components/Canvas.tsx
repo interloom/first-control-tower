@@ -44,6 +44,9 @@ import './Canvas.css'
 // Type for create procedure handler
 export type CreateProcedureHandler = (title: string, stages: ProcedureStage[]) => void
 
+// Type for update procedure handler
+export type UpdateProcedureHandler = (procedureId: string, stages: ProcedureStage[]) => void
+
 const nodeTypes = {
   inbox: InboxNode,
   outbox: OutboxNode,
@@ -119,10 +122,11 @@ interface CanvasInnerProps {
   onNodesListChange?: (nodes: CanvasNodeInfo[]) => void
   onOpenPanelChange?: (panel: OpenPanelInfo | null) => void
   onCreateProcedureReady?: (handler: CreateProcedureHandler) => void
+  onUpdateProcedureReady?: (handler: UpdateProcedureHandler) => void
   onCloseAllPanelsReady?: (handler: () => void) => void
 }
 
-function CanvasInner({ gridType, gridScale, gridOpacity, showParticleTrails, onSelectionChange, onNodesListChange, onOpenPanelChange, onCreateProcedureReady, onCloseAllPanelsReady }: CanvasInnerProps) {
+function CanvasInner({ gridType, gridScale, gridOpacity, showParticleTrails, onSelectionChange, onNodesListChange, onOpenPanelChange, onCreateProcedureReady, onUpdateProcedureReady, onCloseAllPanelsReady }: CanvasInnerProps) {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes)
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges)
   const [contextMenu, setContextMenu] = useState<ContextMenuState>({
@@ -804,6 +808,24 @@ function CanvasInner({ gridType, gridScale, gridOpacity, showParticleTrails, onS
     }
   }, [onCreateProcedureReady, handleCreateProcedure])
 
+  // Handler for updating procedure nodes from the agent chat
+  const handleUpdateProcedure = useCallback((procedureId: string, stages: ProcedureStage[]) => {
+    setNodes((nds) => 
+      nds.map(node => 
+        node.id === procedureId 
+          ? { ...node, data: { ...node.data, stages } }
+          : node
+      )
+    )
+  }, [setNodes])
+
+  // Expose the update procedure handler to parent components
+  useEffect(() => {
+    if (onUpdateProcedureReady) {
+      onUpdateProcedureReady(handleUpdateProcedure)
+    }
+  }, [onUpdateProcedureReady, handleUpdateProcedure])
+
   // Create close all panels handler
   const handleCloseAllPanels = useCallback(() => {
     setDetailPanelNodeId(null)
@@ -879,6 +901,7 @@ function CanvasInner({ gridType, gridScale, gridOpacity, showParticleTrails, onS
         fitViewOptions={{ padding: 0.3, maxZoom: 1 }}
         minZoom={0.25}
         maxZoom={2}
+        proOptions={{ hideAttribution: true }}
         defaultEdgeOptions={{
           type: 'bezier',
           // Invisible in idle state - ParticleSystem draws the visible trajectory
@@ -1031,10 +1054,11 @@ interface CanvasProps {
   onNodesListChange?: (nodes: CanvasNodeInfo[]) => void
   onOpenPanelChange?: (panel: OpenPanelInfo | null) => void
   onCreateProcedureReady?: (handler: CreateProcedureHandler) => void
+  onUpdateProcedureReady?: (handler: UpdateProcedureHandler) => void
   onCloseAllPanelsReady?: (handler: () => void) => void
 }
 
-export function Canvas({ gridType = 'dots', gridScale = 12, gridOpacity = 0.7, showParticleTrails = false, onSelectionChange, onNodesListChange, onOpenPanelChange, onCreateProcedureReady, onCloseAllPanelsReady }: CanvasProps) {
+export function Canvas({ gridType = 'dots', gridScale = 12, gridOpacity = 0.7, showParticleTrails = false, onSelectionChange, onNodesListChange, onOpenPanelChange, onCreateProcedureReady, onUpdateProcedureReady, onCloseAllPanelsReady }: CanvasProps) {
   return (
     <ReactFlowProvider>
       <CanvasInner 
@@ -1046,10 +1070,11 @@ export function Canvas({ gridType = 'dots', gridScale = 12, gridOpacity = 0.7, s
         onNodesListChange={onNodesListChange}
         onOpenPanelChange={onOpenPanelChange}
         onCreateProcedureReady={onCreateProcedureReady}
+        onUpdateProcedureReady={onUpdateProcedureReady}
         onCloseAllPanelsReady={onCloseAllPanelsReady}
       />
     </ReactFlowProvider>
   )
 }
 
-export type { SelectedNodeInfo, CanvasNodeInfo, CreateProcedureHandler }
+export type { SelectedNodeInfo, CanvasNodeInfo, CreateProcedureHandler, UpdateProcedureHandler }
