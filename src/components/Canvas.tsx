@@ -37,6 +37,7 @@ import { StageDetailPanel } from './StageDetailPanel'
 import { ParticleSystem } from '../services/ParticleSystem'
 import { CaseStatus, CasePriority } from './nodes/CaseNode'
 import { mockCases, getCasesByStage, getAverageTimeInStage } from '../data/mockCases'
+import type { OpenPanelInfo } from './ChatPanel'
 import type { GridType } from './PreferencesModal'
 import './Canvas.css'
 
@@ -116,10 +117,11 @@ interface CanvasInnerProps {
   showParticleTrails: boolean
   onSelectionChange?: (selectedNodes: SelectedNodeInfo[]) => void
   onNodesListChange?: (nodes: CanvasNodeInfo[]) => void
+  onOpenPanelChange?: (panel: OpenPanelInfo | null) => void
   onCreateProcedureReady?: (handler: CreateProcedureHandler) => void
 }
 
-function CanvasInner({ gridType, gridScale, gridOpacity, showParticleTrails, onSelectionChange, onNodesListChange, onCreateProcedureReady }: CanvasInnerProps) {
+function CanvasInner({ gridType, gridScale, gridOpacity, showParticleTrails, onSelectionChange, onNodesListChange, onOpenPanelChange, onCreateProcedureReady }: CanvasInnerProps) {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes)
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges)
   const [contextMenu, setContextMenu] = useState<ContextMenuState>({
@@ -217,41 +219,87 @@ function CanvasInner({ gridType, gridScale, gridOpacity, showParticleTrails, onS
   // Handler to open procedure detail panel
   const handleOpenDetailPanel = useCallback((nodeId: string) => {
     setDetailPanelNodeId(nodeId)
-  }, [])
+    const node = nodes.find(n => n.id === nodeId)
+    if (node && onOpenPanelChange) {
+      onOpenPanelChange({
+        type: 'procedure',
+        id: nodeId,
+        label: (node.data?.label as string) ?? 'Procedure',
+      })
+    }
+  }, [nodes, onOpenPanelChange])
 
   // Close procedure detail panel
   const handleCloseDetailPanel = useCallback(() => {
     setDetailPanelNodeId(null)
-  }, [])
+    onOpenPanelChange?.(null)
+  }, [onOpenPanelChange])
   
   // Handler to open case detail panel
   const handleOpenCaseDetailPanel = useCallback((nodeId: string) => {
     setCaseDetailPanelNodeId(nodeId)
-  }, [])
+    // Check if it's a mock case or a node
+    const mockCase = mockCases.find(c => c.id === nodeId)
+    const node = !mockCase ? nodes.find(n => n.id === nodeId) : null
+    const label = mockCase?.label ?? (node?.data?.label as string) ?? 'Case'
+    
+    if (onOpenPanelChange) {
+      onOpenPanelChange({
+        type: 'case',
+        id: nodeId,
+        label,
+      })
+    }
+  }, [nodes, onOpenPanelChange])
 
   // Close case detail panel
   const handleCloseCaseDetailPanel = useCallback(() => {
     setCaseDetailPanelNodeId(null)
-  }, [])
+    onOpenPanelChange?.(null)
+  }, [onOpenPanelChange])
   
   // Handler to open stage detail panel (for Procedure nodes)
   const handleOpenStageDetailPanel = useCallback((nodeId: string, stageIndex: number) => {
     setStageDetailPanel({ nodeId, stageIndex })
     setDetailPanelNodeId(null) // Close procedure panel if open
     setCaseDetailPanelNodeId(null) // Close case panel if open
-  }, [])
+    
+    const node = nodes.find(n => n.id === nodeId)
+    if (node && onOpenPanelChange) {
+      const stages = node.data?.stages ?? DEFAULT_PROCEDURE_STAGES
+      const stage = stages[stageIndex]
+      onOpenPanelChange({
+        type: 'stage',
+        id: `${nodeId}:${stageIndex}`,
+        label: stage?.label ?? `Stage ${stageIndex + 1}`,
+        nodeId,
+        stageIndex,
+      })
+    }
+  }, [nodes, onOpenPanelChange])
   
   // Handler to open stage detail panel (for Inbox/Outbox nodes)
   const handleOpenInboxOutboxStagePanel = useCallback((nodeId: string) => {
     setStageDetailPanel({ nodeId })
     setDetailPanelNodeId(null) // Close procedure panel if open
     setCaseDetailPanelNodeId(null) // Close case panel if open
-  }, [])
+    
+    const node = nodes.find(n => n.id === nodeId)
+    if (onOpenPanelChange) {
+      onOpenPanelChange({
+        type: 'stage',
+        id: nodeId,
+        label: (node?.data?.label as string) ?? nodeId,
+        nodeId,
+      })
+    }
+  }, [nodes, onOpenPanelChange])
 
   // Close stage detail panel
   const handleCloseStageDetailPanel = useCallback(() => {
     setStageDetailPanel(null)
-  }, [])
+    onOpenPanelChange?.(null)
+  }, [onOpenPanelChange])
   
   // Handler to open case detail from stage panel
   const handleOpenCaseDetailFromStage = useCallback((caseId: string) => {
@@ -950,10 +998,11 @@ interface CanvasProps {
   showParticleTrails?: boolean
   onSelectionChange?: (selectedNodes: SelectedNodeInfo[]) => void
   onNodesListChange?: (nodes: CanvasNodeInfo[]) => void
+  onOpenPanelChange?: (panel: OpenPanelInfo | null) => void
   onCreateProcedureReady?: (handler: CreateProcedureHandler) => void
 }
 
-export function Canvas({ gridType = 'dots', gridScale = 12, gridOpacity = 0.7, showParticleTrails = false, onSelectionChange, onNodesListChange, onCreateProcedureReady }: CanvasProps) {
+export function Canvas({ gridType = 'dots', gridScale = 12, gridOpacity = 0.7, showParticleTrails = false, onSelectionChange, onNodesListChange, onOpenPanelChange, onCreateProcedureReady }: CanvasProps) {
   return (
     <ReactFlowProvider>
       <CanvasInner 
@@ -963,6 +1012,7 @@ export function Canvas({ gridType = 'dots', gridScale = 12, gridOpacity = 0.7, s
         showParticleTrails={showParticleTrails}
         onSelectionChange={onSelectionChange} 
         onNodesListChange={onNodesListChange}
+        onOpenPanelChange={onOpenPanelChange}
         onCreateProcedureReady={onCreateProcedureReady}
       />
     </ReactFlowProvider>

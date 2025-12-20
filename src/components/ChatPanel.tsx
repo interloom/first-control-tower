@@ -62,15 +62,23 @@ const MODEL_OPTIONS: ModelOption[] = [
   }
 ]
 
-interface SelectedNodeInfo {
+export interface SelectedNodeInfo {
   id: string
   label: string
   type: string
 }
 
-interface CurrentSpaceInfo {
+export interface CurrentSpaceInfo {
   id: string
   label: string
+}
+
+export interface OpenPanelInfo {
+  type: 'procedure' | 'case' | 'stage'
+  id: string
+  label: string
+  nodeId?: string  // For stage panels, the procedure/inbox/outbox nodeId
+  stageIndex?: number  // For stage panels, the stage index
 }
 
 /**
@@ -79,9 +87,10 @@ interface CurrentSpaceInfo {
  */
 function formatContextForAgent(
   currentSpace?: CurrentSpaceInfo | null,
-  selectedNodes?: SelectedNodeInfo[]
+  selectedNodes?: SelectedNodeInfo[],
+  openPanel?: OpenPanelInfo | null
 ): string {
-  if (!currentSpace && (!selectedNodes || selectedNodes.length === 0)) return ''
+  if (!currentSpace && (!selectedNodes || selectedNodes.length === 0) && !openPanel) return ''
 
   const parts: string[] = ['<context>']
   
@@ -97,6 +106,10 @@ function formatContextForAgent(
     parts.push('  </selected_nodes>')
   }
   
+  if (openPanel) {
+    parts.push(`  <open_panel type="${openPanel.type}" id="${openPanel.id}">${openPanel.label}</open_panel>`)
+  }
+  
   parts.push('</context>')
   
   return parts.join('\n')
@@ -107,7 +120,9 @@ interface ChatPanelProps {
   onClose: () => void
   currentSpace?: CurrentSpaceInfo | null
   selectedNodes?: SelectedNodeInfo[]
+  openPanel?: OpenPanelInfo | null
   onClearSelection?: (nodeId?: string) => void
+  onClearOpenPanel?: () => void
   mentionOptions?: MentionOption[]
   onCreateProcedure?: (title: string, stages: ProcedureStageInput[]) => void
 }
@@ -260,7 +275,7 @@ function UserMessageView({ content }: { content: string }) {
   )
 }
 
-export function ChatPanel({ isOpen, onClose, currentSpace, selectedNodes = [], onClearSelection, mentionOptions = [], onCreateProcedure }: ChatPanelProps) {
+export function ChatPanel({ isOpen, onClose, currentSpace, selectedNodes = [], openPanel, onClearSelection, onClearOpenPanel, mentionOptions = [], onCreateProcedure }: ChatPanelProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [conversationHistory, setConversationHistory] = useState<Message[]>([])
   const [isProcessing, setIsProcessing] = useState(false)
@@ -320,7 +335,7 @@ export function ChatPanel({ isOpen, onClose, currentSpace, selectedNodes = [], o
 
   const runAgentTurn = useCallback(async (userMessage: string) => {
     // Build context-prefixed message for the agent
-    const contextPrefix = formatContextForAgent(currentSpace, selectedNodes)
+    const contextPrefix = formatContextForAgent(currentSpace, selectedNodes, openPanel)
     const messageForAgent = contextPrefix 
       ? `${contextPrefix}\n\n${userMessage}`
       : userMessage
@@ -410,7 +425,7 @@ export function ChatPanel({ isOpen, onClose, currentSpace, selectedNodes = [], o
 
     setIsProcessing(false)
     setStatus('Ready')
-  }, [conversationHistory, selectedModel, currentSpace, selectedNodes])
+  }, [conversationHistory, selectedModel, currentSpace, selectedNodes, openPanel])
 
   const handleStreamEvent = (
     event: AgentStreamEvent, 
@@ -598,6 +613,14 @@ export function ChatPanel({ isOpen, onClose, currentSpace, selectedNodes = [], o
                 onRemove={() => onClearSelection?.(node.id)}
               />
             ))}
+            {openPanel && (
+              <NodePill
+                label={openPanel.label}
+                nodeType={openPanel.type}
+                className="panel-pill"
+                onRemove={onClearOpenPanel}
+              />
+            )}
           </div>
           <div className="composer-container">
             <MentionInput

@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback } from 'react'
 import { Sidebar } from './components/Sidebar'
 import { Canvas, SelectedNodeInfo, CanvasNodeInfo, CreateProcedureHandler } from './components/Canvas'
 import { Header } from './components/Header'
-import { ChatPanel } from './components/ChatPanel'
+import { ChatPanel, OpenPanelInfo } from './components/ChatPanel'
 import { ThreadsScreen } from './components/ThreadsScreen'
 import { ThreadView } from './components/ThreadView'
 import { PreferencesModal, GridType } from './components/PreferencesModal'
@@ -47,6 +47,7 @@ function App() {
   const [showParticleTrails, setShowParticleTrails] = useState(false)
   const [selectedNodes, setSelectedNodes] = useState<SelectedNodeInfo[]>([])
   const [canvasNodes, setCanvasNodes] = useState<CanvasNodeInfo[]>([])
+  const [openPanel, setOpenPanel] = useState<OpenPanelInfo | null>(null)
   const [createProcedureHandler, setCreateProcedureHandler] = useState<CreateProcedureHandler | null>(null)
 
   const [threads, setThreads] = useState<Thread[]>([])
@@ -191,6 +192,7 @@ function App() {
               showParticleTrails={showParticleTrails}
               onSelectionChange={setSelectedNodes}
               onNodesListChange={setCanvasNodes}
+              onOpenPanelChange={setOpenPanel}
               onCreateProcedureReady={handleCreateProcedureReady}
             />
           </>
@@ -238,6 +240,7 @@ function App() {
           onClose={() => setIsChatOpen(false)}
           currentSpace={{ id: 'facility-management', label: 'Facility Management' }}
           selectedNodes={selectedNodes}
+          openPanel={openPanel}
           onClearSelection={(nodeId) => {
             if (nodeId) {
               setSelectedNodes(prev => prev.filter(n => n.id !== nodeId))
@@ -245,6 +248,7 @@ function App() {
               setSelectedNodes([])
             }
           }}
+          onClearOpenPanel={() => setOpenPanel(null)}
           mentionOptions={mentionOptions}
           onCreateProcedure={createProcedureHandler ?? undefined}
         />
