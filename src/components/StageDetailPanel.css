@@ -197,6 +197,29 @@
   color: var(--mono-400);
 }
 
+.add-example-cases-btn {
+  margin-top: 16px;
+  padding: 8px 16px;
+  background: var(--mono-50);
+  border: 1px solid var(--alpha-film-150);
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--mono-600);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.add-example-cases-btn:hover {
+  background: var(--mono-100);
+  border-color: var(--mono-300);
+  color: var(--mono-700);
+}
+
+.add-example-cases-btn:active {
+  transform: scale(0.98);
+}
+
 /* Case Item */
 .stage-case-item {
   padding: 12px;

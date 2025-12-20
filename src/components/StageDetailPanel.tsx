@@ -12,6 +12,7 @@ interface StageDetailPanelProps {
   cases: MockCase[]
   averageTimeInStage: number
   onCaseClick: (caseId: string) => void
+  onAddExampleCases?: () => void
 }
 
 const getStageIcon = (stageType?: 'inbox' | 'outbox' | 'procedure', stageSubtype?: string) => {
@@ -132,7 +133,8 @@ export function StageDetailPanel({
   stageSubtype,
   cases,
   averageTimeInStage,
-  onCaseClick
+  onCaseClick,
+  onAddExampleCases
 }: StageDetailPanelProps) {
   const iconBg = getStageIconBg(stageType, stageSubtype)
   const iconColor = getStageIconColor(stageType, stageSubtype)
@@ -195,6 +197,14 @@ export function StageDetailPanel({
           <div className="stage-panel-empty">
             <Briefcase size={32} />
             <span>No cases at this stage</span>
+            {onAddExampleCases && (
+              <button 
+                className="add-example-cases-btn"
+                onClick={onAddExampleCases}
+              >
+                Add Example Cases
+              </button>
+            )}
           </div>
         ) : (
           cases.map((caseItem) => (

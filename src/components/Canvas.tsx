@@ -36,7 +36,7 @@ import { CaseDetailPanel } from './CaseDetailPanel'
 import { StageDetailPanel } from './StageDetailPanel'
 import { ParticleSystem } from '../services/ParticleSystem'
 import { CaseStatus, CasePriority } from './nodes/CaseNode'
-import { mockCases, getCasesByStage, getAverageTimeInStage } from '../data/mockCases'
+import { mockCases, getCasesByStage, getAverageTimeInStage, MockCase } from '../data/mockCases'
 import type { OpenPanelInfo } from './ChatPanel'
 import type { GridType } from './PreferencesModal'
 import './Canvas.css'
@@ -160,6 +160,9 @@ function CanvasInner({ gridType, gridScale, gridOpacity, showParticleTrails, onS
   // Stage detail panel state
   const [stageDetailPanel, setStageDetailPanel] = useState<{ nodeId: string, stageIndex?: number } | null>(null)
   
+  // Cases state for dynamic management
+  const [cases, setCases] = useState<MockCase[]>(mockCases)
+  
   // Canvas outline collapsed state
   const [outlineCollapsed, setOutlineCollapsed] = useState(true)
   
@@ -249,10 +252,10 @@ function CanvasInner({ gridType, gridScale, gridOpacity, showParticleTrails, onS
     setDetailPanelNodeId(null) // Close procedure panel if open
     setStageDetailPanel(null) // Close stage panel if open
     
-    // Check if it's a mock case or a node
-    const mockCase = mockCases.find(c => c.id === nodeId)
-    const node = !mockCase ? nodes.find(n => n.id === nodeId) : null
-    const label = mockCase?.label ?? (node?.data?.label as string) ?? 'Case'
+    // Check if it's a case from state or a node
+    const caseItem = cases.find(c => c.id === nodeId)
+    const node = !caseItem ? nodes.find(n => n.id === nodeId) : null
+    const label = caseItem?.label ?? (node?.data?.label as string) ?? 'Case'
     
     if (onOpenPanelChange) {
       onOpenPanelChange({
@@ -261,7 +264,7 @@ function CanvasInner({ gridType, gridScale, gridOpacity, showParticleTrails, onS
         label,
       })
     }
-  }, [nodes, onOpenPanelChange])
+  }, [cases, nodes, onOpenPanelChange])
 
   // Close case detail panel
   const handleCloseCaseDetailPanel = useCallback(() => {
@@ -312,11 +315,23 @@ function CanvasInner({ gridType, gridScale, gridOpacity, showParticleTrails, onS
     onOpenPanelChange?.(null)
   }, [onOpenPanelChange])
   
+  // Handler to add example cases to a stage
+  const handleAddExampleCases = useCallback((stageId: string) => {
+    // Take the 6 example cases and assign them to the selected stage
+    const exampleCases = mockCases.map((c, idx) => ({
+      ...c,
+      id: `${stageId}-case-${idx}-${Date.now()}`,
+      currentStage: stageId,
+      stageEnteredAt: new Date().toISOString(),
+    }))
+    setCases(prev => [...prev, ...exampleCases])
+  }, [])
+  
   // Handler to open case detail from stage panel
   const handleOpenCaseDetailFromStage = useCallback((caseId: string) => {
-    // Find the case in mock data and open the case detail panel
-    const mockCase = mockCases.find(c => c.id === caseId)
-    if (mockCase) {
+    // Find the case in cases state and open the case detail panel
+    const caseItem = cases.find(c => c.id === caseId)
+    if (caseItem) {
       // We'll use the case ID as the "node ID" for now
       setCaseDetailPanelNodeId(caseId)
       setStageDetailPanel(null) // Close stage panel
@@ -326,11 +341,11 @@ function CanvasInner({ gridType, gridScale, gridOpacity, showParticleTrails, onS
         onOpenPanelChange({
           type: 'case',
           id: caseId,
-          label: mockCase.label,
+          label: caseItem.label,
         })
       }
     }
-  }, [onOpenPanelChange])
+  }, [cases, onOpenPanelChange])
 
   // Get data for the detail panel
   const detailPanelNode = detailPanelNodeId ? nodes.find(n => n.id === detailPanelNodeId) : null
@@ -360,21 +375,21 @@ function CanvasInner({ gridType, gridScale, gridOpacity, showParticleTrails, onS
   }, [detailPanelNodeId, setNodes])
   
   // Get data for the case detail panel
-  // First check if it's a mock case, otherwise check nodes
-  const mockCase = caseDetailPanelNodeId ? mockCases.find(c => c.id === caseDetailPanelNodeId) : null
-  const caseDetailPanelNode = !mockCase && caseDetailPanelNodeId ? nodes.find(n => n.id === caseDetailPanelNodeId) : null
+  // First check if it's a case from state, otherwise check nodes
+  const caseItem = caseDetailPanelNodeId ? cases.find(c => c.id === caseDetailPanelNodeId) : null
+  const caseDetailPanelNode = !caseItem && caseDetailPanelNodeId ? nodes.find(n => n.id === caseDetailPanelNodeId) : null
   
-  const caseDetailLabel = mockCase?.label ?? (caseDetailPanelNode?.data?.label as string) ?? 'Case'
-  const caseDetailId = mockCase?.caseId ?? (caseDetailPanelNode?.data?.caseId as string) ?? `#${caseDetailPanelNodeId?.slice(-6).toUpperCase() ?? ''}`
-  const caseDetailStatus = (mockCase?.status ?? caseDetailPanelNode?.data?.status) as CaseStatus ?? 'open'
-  const caseDetailPriority = (mockCase?.priority ?? caseDetailPanelNode?.data?.priority) as CasePriority ?? 'medium'
-  const caseDetailAssignee = mockCase?.assignee ?? (caseDetailPanelNode?.data?.assignee as string) ?? 'Unassigned'
-  const caseDetailCreatedAt = mockCase?.createdAt ?? (caseDetailPanelNode?.data?.createdAt as string) ?? 'Just now'
-  const caseDetailDueDate = mockCase?.dueDate ?? (caseDetailPanelNode?.data?.dueDate as string | undefined)
-  const caseDetailTags = mockCase?.tags ?? (caseDetailPanelNode?.data?.tags as string[]) ?? []
-  const caseDetailCurrentStage = mockCase?.currentStage
-  const caseDetailAttachedFiles = mockCase?.attachedFiles
-  const caseDetailNotepad = mockCase?.notepad
+  const caseDetailLabel = caseItem?.label ?? (caseDetailPanelNode?.data?.label as string) ?? 'Case'
+  const caseDetailId = caseItem?.caseId ?? (caseDetailPanelNode?.data?.caseId as string) ?? `#${caseDetailPanelNodeId?.slice(-6).toUpperCase() ?? ''}`
+  const caseDetailStatus = (caseItem?.status ?? caseDetailPanelNode?.data?.status) as CaseStatus ?? 'open'
+  const caseDetailPriority = (caseItem?.priority ?? caseDetailPanelNode?.data?.priority) as CasePriority ?? 'medium'
+  const caseDetailAssignee = caseItem?.assignee ?? (caseDetailPanelNode?.data?.assignee as string) ?? 'Unassigned'
+  const caseDetailCreatedAt = caseItem?.createdAt ?? (caseDetailPanelNode?.data?.createdAt as string) ?? 'Just now'
+  const caseDetailDueDate = caseItem?.dueDate ?? (caseDetailPanelNode?.data?.dueDate as string | undefined)
+  const caseDetailTags = caseItem?.tags ?? (caseDetailPanelNode?.data?.tags as string[]) ?? []
+  const caseDetailCurrentStage = caseItem?.currentStage
+  const caseDetailAttachedFiles = caseItem?.attachedFiles
+  const caseDetailNotepad = caseItem?.notepad
 
   // Update procedure nodes with the callbacks
   useEffect(() => {
@@ -753,8 +768,12 @@ function CanvasInner({ gridType, gridScale, gridOpacity, showParticleTrails, onS
     const handleKeyDown = (event: KeyboardEvent) => {
       // Check if Delete or Backspace was pressed
       if (event.key === 'Delete' || event.key === 'Backspace') {
-        // Don't trigger if user is typing in an input
-        if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
+        // Don't trigger if user is typing in an input, textarea, or contenteditable element
+        if (
+          event.target instanceof HTMLInputElement || 
+          event.target instanceof HTMLTextAreaElement ||
+          (event.target instanceof HTMLElement && event.target.isContentEditable)
+        ) {
           return
         }
 
@@ -872,17 +891,27 @@ function CanvasInner({ gridType, gridScale, gridOpacity, showParticleTrails, onS
       }
     }
     
-    const cases = getCasesByStage(stageId)
-    const averageTime = getAverageTimeInStage(stageId)
+    // Filter cases from state instead of using static helper
+    const stageCases = cases.filter(c => c.currentStage === stageId)
+    
+    // Calculate average time in stage
+    const now = new Date()
+    const averageTime = stageCases.length === 0 ? 0 : stageCases.reduce((sum, c) => {
+      if (!c.stageEnteredAt) return sum
+      const enteredAt = new Date(c.stageEnteredAt)
+      const hoursInStage = (now.getTime() - enteredAt.getTime()) / (1000 * 60 * 60)
+      return sum + hoursInStage
+    }, 0) / stageCases.length
     
     return {
       stageName,
       stageType,
       stageSubtype,
-      cases,
+      stageId,
+      cases: stageCases,
       averageTime,
     }
-  }, [stageDetailPanel, nodes])
+  }, [stageDetailPanel, nodes, cases])
 
   return (
     <div className={`canvas-container ${outlineCollapsed ? 'outline-collapsed' : 'outline-expanded'}`} ref={reactFlowWrapper}>
@@ -1027,6 +1056,7 @@ function CanvasInner({ gridType, gridScale, gridOpacity, showParticleTrails, onS
           cases={stageDetailData.cases}
           averageTimeInStage={stageDetailData.averageTime}
           onCaseClick={handleOpenCaseDetailFromStage}
+          onAddExampleCases={() => handleAddExampleCases(stageDetailData.stageId)}
         />
       )}
     </div>
