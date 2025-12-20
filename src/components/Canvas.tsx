@@ -119,9 +119,10 @@ interface CanvasInnerProps {
   onNodesListChange?: (nodes: CanvasNodeInfo[]) => void
   onOpenPanelChange?: (panel: OpenPanelInfo | null) => void
   onCreateProcedureReady?: (handler: CreateProcedureHandler) => void
+  onCloseAllPanelsReady?: (handler: () => void) => void
 }
 
-function CanvasInner({ gridType, gridScale, gridOpacity, showParticleTrails, onSelectionChange, onNodesListChange, onOpenPanelChange, onCreateProcedureReady }: CanvasInnerProps) {
+function CanvasInner({ gridType, gridScale, gridOpacity, showParticleTrails, onSelectionChange, onNodesListChange, onOpenPanelChange, onCreateProcedureReady, onCloseAllPanelsReady }: CanvasInnerProps) {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes)
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges)
   const [contextMenu, setContextMenu] = useState<ContextMenuState>({
@@ -219,6 +220,9 @@ function CanvasInner({ gridType, gridScale, gridOpacity, showParticleTrails, onS
   // Handler to open procedure detail panel
   const handleOpenDetailPanel = useCallback((nodeId: string) => {
     setDetailPanelNodeId(nodeId)
+    setCaseDetailPanelNodeId(null) // Close case panel if open
+    setStageDetailPanel(null) // Close stage panel if open
+    
     const node = nodes.find(n => n.id === nodeId)
     if (node && onOpenPanelChange) {
       onOpenPanelChange({
@@ -238,6 +242,9 @@ function CanvasInner({ gridType, gridScale, gridOpacity, showParticleTrails, onS
   // Handler to open case detail panel
   const handleOpenCaseDetailPanel = useCallback((nodeId: string) => {
     setCaseDetailPanelNodeId(nodeId)
+    setDetailPanelNodeId(null) // Close procedure panel if open
+    setStageDetailPanel(null) // Close stage panel if open
+    
     // Check if it's a mock case or a node
     const mockCase = mockCases.find(c => c.id === nodeId)
     const node = !mockCase ? nodes.find(n => n.id === nodeId) : null
@@ -309,8 +316,17 @@ function CanvasInner({ gridType, gridScale, gridOpacity, showParticleTrails, onS
       // We'll use the case ID as the "node ID" for now
       setCaseDetailPanelNodeId(caseId)
       setStageDetailPanel(null) // Close stage panel
+      
+      // Update context pill to show the case panel
+      if (onOpenPanelChange) {
+        onOpenPanelChange({
+          type: 'case',
+          id: caseId,
+          label: mockCase.label,
+        })
+      }
     }
-  }, [])
+  }, [onOpenPanelChange])
 
   // Get data for the detail panel
   const detailPanelNode = detailPanelNodeId ? nodes.find(n => n.id === detailPanelNodeId) : null
@@ -788,6 +804,21 @@ function CanvasInner({ gridType, gridScale, gridOpacity, showParticleTrails, onS
     }
   }, [onCreateProcedureReady, handleCreateProcedure])
 
+  // Create close all panels handler
+  const handleCloseAllPanels = useCallback(() => {
+    setDetailPanelNodeId(null)
+    setCaseDetailPanelNodeId(null)
+    setStageDetailPanel(null)
+    onOpenPanelChange?.(null)
+  }, [onOpenPanelChange])
+
+  // Expose the close all panels handler to parent components
+  useEffect(() => {
+    if (onCloseAllPanelsReady) {
+      onCloseAllPanelsReady(handleCloseAllPanels)
+    }
+  }, [onCloseAllPanelsReady, handleCloseAllPanels])
+
   // Compute data for stage detail panel
   const stageDetailData = useMemo(() => {
     if (!stageDetailPanel) return null
@@ -1000,9 +1031,10 @@ interface CanvasProps {
   onNodesListChange?: (nodes: CanvasNodeInfo[]) => void
   onOpenPanelChange?: (panel: OpenPanelInfo | null) => void
   onCreateProcedureReady?: (handler: CreateProcedureHandler) => void
+  onCloseAllPanelsReady?: (handler: () => void) => void
 }
 
-export function Canvas({ gridType = 'dots', gridScale = 12, gridOpacity = 0.7, showParticleTrails = false, onSelectionChange, onNodesListChange, onOpenPanelChange, onCreateProcedureReady }: CanvasProps) {
+export function Canvas({ gridType = 'dots', gridScale = 12, gridOpacity = 0.7, showParticleTrails = false, onSelectionChange, onNodesListChange, onOpenPanelChange, onCreateProcedureReady, onCloseAllPanelsReady }: CanvasProps) {
   return (
     <ReactFlowProvider>
       <CanvasInner 
@@ -1014,6 +1046,7 @@ export function Canvas({ gridType = 'dots', gridScale = 12, gridOpacity = 0.7, s
         onNodesListChange={onNodesListChange}
         onOpenPanelChange={onOpenPanelChange}
         onCreateProcedureReady={onCreateProcedureReady}
+        onCloseAllPanelsReady={onCloseAllPanelsReady}
       />
     </ReactFlowProvider>
   )

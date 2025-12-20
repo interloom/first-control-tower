@@ -49,6 +49,7 @@ function App() {
   const [canvasNodes, setCanvasNodes] = useState<CanvasNodeInfo[]>([])
   const [openPanel, setOpenPanel] = useState<OpenPanelInfo | null>(null)
   const [createProcedureHandler, setCreateProcedureHandler] = useState<CreateProcedureHandler | null>(null)
+  const [closeAllPanelsHandler, setCloseAllPanelsHandler] = useState<(() => void) | null>(null)
 
   const [threads, setThreads] = useState<Thread[]>([])
   const [pendingMessageTransition, setPendingMessageTransition] = useState<{
@@ -60,6 +61,10 @@ function App() {
   // Store the create procedure handler when Canvas is ready
   const handleCreateProcedureReady = useCallback((handler: CreateProcedureHandler) => {
     setCreateProcedureHandler(() => handler)
+  }, [])
+
+  const handleCloseAllPanelsReady = useCallback((handler: () => void) => {
+    setCloseAllPanelsHandler(() => handler)
   }, [])
 
   // Convert canvas nodes to mention options
@@ -194,6 +199,7 @@ function App() {
               onNodesListChange={setCanvasNodes}
               onOpenPanelChange={setOpenPanel}
               onCreateProcedureReady={handleCreateProcedureReady}
+              onCloseAllPanelsReady={handleCloseAllPanelsReady}
             />
           </>
         )}
@@ -248,7 +254,10 @@ function App() {
               setSelectedNodes([])
             }
           }}
-          onClearOpenPanel={() => setOpenPanel(null)}
+          onClearOpenPanel={() => {
+            setOpenPanel(null)
+            closeAllPanelsHandler?.()
+          }}
           mentionOptions={mentionOptions}
           onCreateProcedure={createProcedureHandler ?? undefined}
         />
