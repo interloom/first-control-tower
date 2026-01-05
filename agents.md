@@ -122,7 +122,7 @@ const initialEdges: Edge[] = [
     id: 'inbox-outbox',
     source: 'inbox',
     target: 'outbox',
-    type: 'bezier',
+    type: 'default',
     style: { stroke: 'transparent', strokeWidth: 0 },
     selectable: true,
     focusable: true,
@@ -139,7 +139,7 @@ Users manually connect nodes by dragging from source to target node handles. Thi
 const onConnect = useCallback((connection: Connection) => {
   setEdges((eds) => addEdge({
     ...connection,
-    type: 'bezier',
+    type: 'default',
     style: { stroke: 'transparent', strokeWidth: 0 },
     selectable: true,
     focusable: true,

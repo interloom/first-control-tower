@@ -91,7 +91,7 @@ const initialEdges: Edge[] = [
     id: 'inbox-outbox',
     source: 'inbox',
     target: 'outbox',
-    type: 'bezier',
+    type: 'default',
     style: { stroke: 'transparent', strokeWidth: 0 },
     selectable: true,
     focusable: true,
@@ -506,7 +506,7 @@ function CanvasInner({ gridType, gridScale, gridOpacity, showParticleTrails, onS
   const onConnect = useCallback((connection: Connection) => {
     setEdges((eds) => addEdge({
       ...connection,
-      type: 'bezier',
+      type: 'default',
       style: { stroke: 'transparent', strokeWidth: 0 },
       selectable: true,
       focusable: true,
@@ -932,7 +932,7 @@ function CanvasInner({ gridType, gridScale, gridOpacity, showParticleTrails, onS
         maxZoom={2}
         proOptions={{ hideAttribution: true }}
         defaultEdgeOptions={{
-          type: 'bezier',
+          type: 'default',
           // Invisible in idle state - ParticleSystem draws the visible trajectory
           style: { stroke: 'transparent', strokeWidth: 0 },
           selectable: true,
