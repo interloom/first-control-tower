@@ -6,6 +6,7 @@
   padding: 14px 16px;
   box-shadow: 0 1px 0 var(--alpha-film-50);
   box-sizing: border-box;
+  margin-left: 0;
 }
 
 .user-message.sticky {
@@ -70,6 +71,7 @@
   flex-shrink: 0;
   color: var(--mono-500);
   transition: all 0.2s ease;
+  margin-top: 8px; /* Align with move-header text (10px padding - visual offset) */
 }
 
 .step-icon.thinking {
@@ -241,6 +243,18 @@
 
 .move.collapsed .move-content {
   display: none;
+}
+
+.move.collapsed {
+  background: transparent;
+}
+
+.move.collapsed .move-header {
+  background: transparent;
+}
+
+.thinking-block.collapsed {
+  border-color: transparent;
 }
 
 /* Thinking */
