@@ -128,6 +128,15 @@ export function ThinkingBlock({
 
 export type ToolCallStatus = 'forming' | 'running' | 'done'
 
+export type ToolCallData = {
+  id: string
+  name: string
+  status: ToolCallStatus
+  inputText?: string
+  inputObject?: Record<string, unknown>
+  resultText?: string
+}
+
 export function ToolCallBlock({
   name,
   inputText,
@@ -212,6 +221,11 @@ export function AgentTurnView({
         resultText?: string
         status: ToolCallStatus
       }
+    | {
+        type: 'tool_group'
+        id: string
+        tools: ToolCallData[]
+      }
   >
   finalSegments: StreamSegment[]
   isStreaming: boolean
@@ -269,11 +283,45 @@ export function AgentTurnView({
             )
           }
 
-          // Tool calls
+          // Tool group (parallel tools)
+          if (move.type === 'tool_group') {
+            const allDone = move.tools.every(t => t.status === 'done')
+            const anyActive = move.tools.some(t => t.status === 'forming' || t.status === 'running')
+            // Use first tool's icon as the group icon
+            const firstMeta = move.tools.length > 0 ? getToolMeta(move.tools[0].name) : { icon: <Terminal size={12} /> }
+
+            return (
+              <MoveStep
+                key={move.id}
+                icon={firstMeta.icon}
+                isActive={anyActive}
+                isDone={allDone}
+                isLast={isLastMove}
+                variant="tool"
+              >
+                <div className="tool-group">
+                  {move.tools.map((tool) => (
+                    <ToolCallBlock
+                      key={tool.id}
+                      name={tool.name}
+                      inputText={tool.inputText}
+                      inputObject={tool.inputObject}
+                      resultText={tool.resultText}
+                      status={tool.status}
+                      isCollapsed={!toggledMoves.has(tool.id)}
+                      onToggle={() => toggleMove(tool.id)}
+                    />
+                  ))}
+                </div>
+              </MoveStep>
+            )
+          }
+
+          // Single tool call
           const meta = getToolMeta(move.name)
           const isToolDone = move.status === 'done'
           const isToolActive = move.status === 'forming' || move.status === 'running'
-          
+
           return (
             <MoveStep
               key={move.id}

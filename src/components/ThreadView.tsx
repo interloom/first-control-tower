@@ -6,6 +6,7 @@ import { runMockThreadTurn } from '../services/threads/mockThreadAgent'
 import {
   AgentTurnView,
   type StreamSegment,
+  type ToolCallData,
   type ToolCallStatus,
   UserMessageBubble,
 } from './thread/MoveBlocks'
@@ -25,6 +26,11 @@ type ThreadMove =
       inputText?: string
       inputObject?: Record<string, unknown>
       resultText?: string
+    }
+  | {
+      type: 'tool_group'
+      id: string
+      tools: ToolCallData[]
     }
 
 type ThreadTurn = {
@@ -227,6 +233,31 @@ export function ThreadView({
   )
 }
 
+// Helper to find a tool by ID across both tool_call and tool_group moves
+function findToolById(moves: ThreadMove[], toolId: string): ToolCallData | null {
+  for (const move of moves) {
+    if (move.type === 'tool_call' && move.id === toolId) {
+      return move
+    }
+    if (move.type === 'tool_group') {
+      const tool = move.tools.find(t => t.id === toolId)
+      if (tool) return tool
+    }
+  }
+  return null
+}
+
+// Check if there are any in-flight tools (not done)
+function hasInFlightTools(moves: ThreadMove[]): boolean {
+  const last = moves[moves.length - 1]
+  if (!last) return false
+  if (last.type === 'tool_call' && last.status !== 'done') return true
+  if (last.type === 'tool_group') {
+    return last.tools.some(t => t.status !== 'done')
+  }
+  return false
+}
+
 function handleEvent(
   event: AgentStreamEvent,
   moves: ThreadMove[],
@@ -260,41 +291,71 @@ function handleEvent(
 
     case 'tool_start': {
       const data = event.data as { id: string; name: string }
-      moves.push({
-        type: 'tool_call',
+      const newTool: ToolCallData = {
         id: data.id,
         name: data.name,
         status: 'forming',
         inputText: '',
-      })
+      }
+
+      // Check if we should group with existing in-flight tools
+      if (hasInFlightTools(moves)) {
+        const last = moves[moves.length - 1]
+        if (last.type === 'tool_call') {
+          // Convert single tool_call to tool_group
+          const existingTool: ToolCallData = {
+            id: last.id,
+            name: last.name,
+            status: last.status,
+            inputText: last.inputText,
+            inputObject: last.inputObject,
+            resultText: last.resultText,
+          }
+          // Replace with group
+          moves[moves.length - 1] = {
+            type: 'tool_group',
+            id: `group-${last.id}`,
+            tools: [existingTool, newTool],
+          }
+        } else if (last.type === 'tool_group') {
+          // Add to existing group
+          last.tools.push(newTool)
+        }
+      } else {
+        // Start new single tool_call
+        moves.push({
+          type: 'tool_call',
+          ...newTool,
+        })
+      }
       return
     }
 
     case 'tool_delta': {
       const data = event.data as { id: string; delta: string }
-      const move = moves.find((m) => m.type === 'tool_call' && m.id === data.id)
-      if (move && move.type === 'tool_call') {
-        move.inputText = (move.inputText ?? '') + data.delta
+      const tool = findToolById(moves, data.id)
+      if (tool) {
+        tool.inputText = (tool.inputText ?? '') + data.delta
       }
       return
     }
 
     case 'tool_end': {
       const data = event.data as { id: string; name: string; input: Record<string, unknown> }
-      const move = moves.find((m) => m.type === 'tool_call' && m.id === data.id)
-      if (move && move.type === 'tool_call') {
-        move.status = 'running'
-        move.inputObject = data.input
+      const tool = findToolById(moves, data.id)
+      if (tool) {
+        tool.status = 'running'
+        tool.inputObject = data.input
       }
       return
     }
 
     case 'tool_result': {
       const data = event.data as { id: string; name: string; result: string }
-      const move = moves.find((m) => m.type === 'tool_call' && m.id === data.id)
-      if (move && move.type === 'tool_call') {
-        move.status = 'done'
-        move.resultText = data.result
+      const tool = findToolById(moves, data.id)
+      if (tool) {
+        tool.status = 'done'
+        tool.resultText = data.result
       }
       return
     }

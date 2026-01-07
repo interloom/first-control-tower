@@ -98,7 +98,44 @@ export async function* runMockThreadTurn(userText: string): AsyncGenerator<Agent
   yield { type: 'tool_result', data: { id: listId, name: 'list_files', result: listResult } }
 
   // ─────────────────────────────────────────────────────────────
-  // 5. Intermittent thinking - reflect before taking action
+  // 5. PARALLEL read_file calls - read multiple files at once
+  // ─────────────────────────────────────────────────────────────
+  const parallelRead1 = uid('tool')
+  const parallelRead2 = uid('tool')
+  const parallelRead3 = uid('tool')
+
+  // Start all 3 tools before any finish (parallel execution)
+  yield { type: 'tool_start', data: { id: parallelRead1, name: 'read_file' } }
+  yield { type: 'tool_start', data: { id: parallelRead2, name: 'read_file' } }
+  yield { type: 'tool_start', data: { id: parallelRead3, name: 'read_file' } }
+
+  // Stream args for each (interleaved to simulate parallel)
+  const args1 = JSON.stringify({ path: 'src/services/agent/client.ts' }, null, 2)
+  const args2 = JSON.stringify({ path: 'src/services/agent/tools.ts' }, null, 2)
+  const args3 = JSON.stringify({ path: 'src/services/agent/types.ts' }, null, 2)
+
+  for (let i = 0; i < Math.max(args1.length, args2.length, args3.length); i += 15) {
+    await sleep(60)
+    if (i < args1.length) yield { type: 'tool_delta', data: { id: parallelRead1, delta: args1.slice(i, i + 15) } }
+    if (i < args2.length) yield { type: 'tool_delta', data: { id: parallelRead2, delta: args2.slice(i, i + 15) } }
+    if (i < args3.length) yield { type: 'tool_delta', data: { id: parallelRead3, delta: args3.slice(i, i + 15) } }
+  }
+
+  // End all tools (args complete)
+  yield { type: 'tool_end', data: { id: parallelRead1, name: 'read_file', input: { path: 'src/services/agent/client.ts' } } }
+  yield { type: 'tool_end', data: { id: parallelRead2, name: 'read_file', input: { path: 'src/services/agent/tools.ts' } } }
+  yield { type: 'tool_end', data: { id: parallelRead3, name: 'read_file', input: { path: 'src/services/agent/types.ts' } } }
+
+  // Results come back as they complete
+  await sleep(400)
+  yield { type: 'tool_result', data: { id: parallelRead1, name: 'read_file', result: 'export class AgentClient {\n  constructor(apiKey: string) { ... }\n  async streamTurn(messages) { ... }\n}' } }
+  await sleep(300)
+  yield { type: 'tool_result', data: { id: parallelRead2, name: 'read_file', result: 'export const TOOLS = [\n  { name: "read_file", ... },\n  { name: "search_codebase", ... },\n]' } }
+  await sleep(250)
+  yield { type: 'tool_result', data: { id: parallelRead3, name: 'read_file', result: 'export interface AgentStreamEvent {\n  type: string\n  data?: unknown\n}' } }
+
+  // ─────────────────────────────────────────────────────────────
+  // 6. Intermittent thinking - reflect before taking action
   // ─────────────────────────────────────────────────────────────
   const thinking2Id = uid('thinking')
   yield { type: 'thinking_start', data: { id: thinking2Id } }
@@ -186,7 +223,7 @@ export async function* runMockThreadTurn(userText: string): AsyncGenerator<Agent
     yield { type: 'text_delta', data: { delta: chunk } }
   }
 
-  yield { type: 'turn_end', data: { finalText, moveCount: 7 } }
+  yield { type: 'turn_end', data: { finalText, moveCount: 8 } }
 }
 
 function splitForStreaming(text: string, maxChunk: number) {
