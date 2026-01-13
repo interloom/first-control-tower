@@ -15,6 +15,15 @@
   display: flex;
   flex-direction: column;
   gap: 14px;
+  scroll-behavior: auto;
+}
+
+/* Kill all animations/transitions within thread-scroll */
+.thread-scroll *,
+.thread-scroll *::before,
+.thread-scroll *::after {
+  animation: none !important;
+  transition: none !important;
 }
 
 .thread-pinned {
@@ -37,7 +46,6 @@
   flex-direction: column;
   gap: 14px;
   padding-top: 14px;
-  border-top: 1px solid var(--mono-200);
   margin-top: 14px;
 }
 
@@ -91,7 +99,6 @@
   gap: 8px;
   font-family: inherit;
   font-size: 13px;
-  transition: all 0.15s ease;
 }
 
 .thread-send:hover {
@@ -103,40 +110,9 @@
   cursor: not-allowed;
 }
 
-/* Transition overlay */
+/* Transition overlay - disabled */
 .thread-transition {
-  position: fixed;
-  z-index: 1000;
-  pointer-events: none;
-  transition: top 520ms cubic-bezier(0.2, 0.8, 0.2, 1), left 520ms cubic-bezier(0.2, 0.8, 0.2, 1),
-    width 520ms cubic-bezier(0.2, 0.8, 0.2, 1), height 520ms cubic-bezier(0.2, 0.8, 0.2, 1),
-    opacity 520ms ease;
-  opacity: 1;
-}
-
-.thread-transition-inner {
-  height: 100%;
-  background: rgba(255, 255, 255, 0.95);
-  border: 1px solid var(--mono-200);
-  border-radius: 14px;
-  padding: 14px 16px;
-  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.16);
-  backdrop-filter: blur(10px);
-}
-
-.thread-transition .message-label {
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--mono-500);
-  margin-bottom: 8px;
-}
-
-.thread-transition .message-content {
-  font-size: 15px;
-  line-height: 1.65;
-  color: var(--mono-900);
+  display: none;
 }
 
 .thread-debug {

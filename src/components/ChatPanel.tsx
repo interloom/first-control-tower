@@ -1,12 +1,17 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { 
   Bot, X, Plus, MousePointer2, Globe, Image, Mic, ChevronDown,
-  ChevronRight, FileText, Search, Terminal, FolderOpen, Lightbulb, ListTodo,
   Sparkles, Zap, Crown, Ban, Check
 } from 'lucide-react'
 import { MentionInput, MentionInputHandle, Mention } from './MentionInput'
 import { MentionOption } from './MentionDropdown'
 import { NodePill } from './NodePill'
+import { 
+  AgentTurnView,
+  type StreamSegment,
+  type ToolCallStatus,
+  type ToolCallData,
+} from './thread/MoveBlocks'
 import { 
   createAgentClient, 
   isThinkingTool,
@@ -128,151 +133,72 @@ interface ChatPanelProps {
   onUpdateProcedure?: (procedureId: string, stages: ProcedureStageInput[]) => void
 }
 
-// Tool icon mapping
-function getToolIcon(toolName: string) {
-  switch (toolName) {
-    case 'read_file': return <FileText size={14} />
-    case 'search_codebase': return <Search size={14} />
-    case 'execute_command': return <Terminal size={14} />
-    case 'list_files': return <FolderOpen size={14} />
-    case 'think': return <Lightbulb size={14} />
-    case 'create_procedure': return <ListTodo size={14} />
-    case 'update_procedure': return <ListTodo size={14} />
-    default: return <Terminal size={14} />
-  }
-}
+// Convert ChatPanel move format to MoveBlocks format
+type MoveBlocksMove =
+  | { type: 'thinking'; id: string; segments: StreamSegment[]; isStreaming: boolean }
+  | { type: 'tool_call'; id: string; name: string; inputObject?: Record<string, unknown>; resultText?: string; status: ToolCallStatus }
+  | { type: 'tool_group'; id: string; tools: ToolCallData[] }
 
-// Thinking Block Component
-function ThinkingBlock({ thought, isCollapsed, onToggle }: { 
-  thought: string
-  isCollapsed: boolean
-  onToggle: () => void 
-}) {
-  return (
-    <div className={`move thinking-block ${isCollapsed ? 'collapsed' : ''}`}>
-      <div className="move-header" onClick={onToggle}>
-        <Lightbulb size={14} />
-        <span>Thinking</span>
-        <ChevronRight size={14} className="chevron" />
-      </div>
-      <div className="move-content">
-        {thought}
-      </div>
-    </div>
-  )
-}
-
-// Tool Call Block Component
-function ToolCallBlock({ name, input, result, isCollapsed, onToggle }: {
-  name: string
-  input: Record<string, unknown>
-  result?: string
-  isCollapsed: boolean
-  onToggle: () => void
-}) {
-  return (
-    <div className={`move tool-block ${isCollapsed ? 'collapsed' : ''}`}>
-      <div className="move-header" onClick={onToggle}>
-        {getToolIcon(name)}
-        <span className="tool-name">{name}</span>
-        <ChevronRight size={14} className="chevron" />
-      </div>
-      <div className="move-content">
-        <div className="tool-args">
-          {JSON.stringify(input, null, 2)}
-        </div>
-        {result && (
-          <div className="tool-result">
-            <div className="tool-result-label">Result</div>
-            <div className="tool-result-content">{result}</div>
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
-// Loading Indicator Component
-function LoadingIndicator() {
-  return (
-    <div className="loading-indicator">
-      <div className="loading-dots">
-        <span></span>
-        <span></span>
-        <span></span>
-      </div>
-      <span>Processing...</span>
-    </div>
-  )
-}
-
-// Agent Turn Component
-function AgentTurnView({ turn }: { turn: AgentTurn }) {
-  const [collapsedMoves, setCollapsedMoves] = useState<Set<string>>(new Set())
-
-  const toggleMove = (moveId: string) => {
-    setCollapsedMoves(prev => {
-      const next = new Set(prev)
-      if (next.has(moveId)) {
-        next.delete(moveId)
-      } else {
-        next.add(moveId)
+function convertMovesToMoveBlocksFormat(moves: Move[]): MoveBlocksMove[] {
+  return moves.map(move => {
+    if (move.type === 'thinking') {
+      // Convert thought string to segments
+      const segments: StreamSegment[] = move.thought
+        .split(/(\s+)/)
+        .filter(Boolean)
+        .map((text, i) => ({ id: `${move.id}-seg-${i}`, text }))
+      return {
+        type: 'thinking' as const,
+        id: move.id,
+        segments,
+        isStreaming: move.isStreaming,
       }
-      return next
-    })
-  }
+    } else {
+      return {
+        type: 'tool_call' as const,
+        id: move.id,
+        name: move.name,
+        inputObject: move.input,
+        resultText: move.result,
+        status: (move.isStreaming ? 'running' : 'done') as ToolCallStatus,
+      }
+    }
+  })
+}
 
+function convertFinalAnswerToSegments(finalAnswer?: string): StreamSegment[] {
+  if (!finalAnswer) return []
+  return finalAnswer
+    .split(/(\s+)/)
+    .filter(Boolean)
+    .map((text, i) => ({ id: `final-seg-${i}`, text }))
+}
+
+// ChatPanel's agent turn wrapper that converts data and renders MoveBlocks AgentTurnView
+function ChatPanelAgentTurn({ turn }: { turn: AgentTurn }) {
+  const convertedMoves = convertMovesToMoveBlocksFormat(turn.moves)
+  const finalSegments = convertFinalAnswerToSegments(turn.finalAnswer)
+  
   return (
-    <div className="agent-turn">
-      <div className="turn-header">
-        <Bot size={16} />
-        <span>Agent</span>
-        <span className="move-count">{turn.moves.length} move{turn.moves.length !== 1 ? 's' : ''}</span>
-      </div>
-      
-      {turn.moves.map((move: Move) => {
-        if (move.type === 'thinking') {
-          return (
-            <ThinkingBlock
-              key={move.id}
-              thought={move.thought}
-              isCollapsed={collapsedMoves.has(move.id)}
-              onToggle={() => toggleMove(move.id)}
-            />
-          )
-        } else {
-          return (
-            <ToolCallBlock
-              key={move.id}
-              name={move.name}
-              input={move.input}
-              result={move.result}
-              isCollapsed={collapsedMoves.has(move.id)}
-              onToggle={() => toggleMove(move.id)}
-            />
-          )
-        }
-      })}
-
-      {turn.isStreaming && <LoadingIndicator />}
-
-      {turn.finalAnswer && (
-        <div className="final-answer">
-          {turn.finalAnswer.split('\n\n').map((paragraph, i) => (
-            <p key={i}>{paragraph}</p>
-          ))}
-        </div>
-      )}
-    </div>
+    <AgentTurnView
+      title="Agent"
+      moves={convertedMoves}
+      finalSegments={finalSegments}
+      isStreaming={turn.isStreaming}
+    />
   )
 }
 
-// User Message Component
+// User Message Component - matches MoveBlocks layout
 function UserMessageView({ content }: { content: string }) {
   return (
-    <div className="user-message">
-      <div className="message-label">You</div>
-      <div className="message-content">{content}</div>
+    <div className="user-turn">
+      <div className="turn-header">
+        <span>You</span>
+      </div>
+      <div className="user-message">
+        {content}
+      </div>
     </div>
   )
 }
@@ -602,7 +528,7 @@ export function ChatPanel({ isOpen, onClose, currentSpace, selectedNodes = [], o
             if (message.role === 'user') {
               return <UserMessageView key={message.id} content={message.content} />
             } else {
-              return <AgentTurnView key={message.id} turn={message.turn} />
+              return <ChatPanelAgentTurn key={message.id} turn={message.turn} />
             }
           })}
           <div ref={messagesEndRef} />

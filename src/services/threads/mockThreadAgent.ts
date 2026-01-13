@@ -12,7 +12,7 @@ function uid(prefix: string) {
  * Mock agent turn stream for Threads.
  *
  * This is intentionally UI-first: it yields small deltas so the UI can render
- * "forming/loading/streaming" states without calling external APIs.
+ * "running/done/streaming" states without calling external APIs.
  * 
  * Demonstrates all tool types:
  * - think: Internal reasoning

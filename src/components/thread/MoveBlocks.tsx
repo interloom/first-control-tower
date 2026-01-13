@@ -1,12 +1,11 @@
 import { useState } from 'react'
 import {
   Bot,
-  ChevronRight,
+  Check,
   FileText,
   FolderOpen,
   Lightbulb,
   ListTodo,
-  MessageSquare,
   Search,
   Terminal,
 } from 'lucide-react'
@@ -55,11 +54,15 @@ export function StreamText({ segments }: { segments: StreamSegment[] }) {
   )
 }
 
-export function UserMessageBubble({ content, sticky = false }: { content: string; sticky?: boolean }) {
+export function UserMessageBubble({ content, sticky = false, label = 'You' }: { content: string; sticky?: boolean; label?: string }) {
   return (
-    <div className={`user-message ${sticky ? 'sticky' : ''}`}>
-      <div className="message-label">You</div>
-      <div className="message-content">{content}</div>
+    <div className={`user-turn ${sticky ? 'sticky' : ''}`}>
+      <div className="turn-header">
+        <span>{label}</span>
+      </div>
+      <div className="user-message">
+        {content}
+      </div>
     </div>
   )
 }
@@ -106,6 +109,7 @@ function MoveStep({
   isDone,
   isLast,
   variant,
+  onIconClick,
   children,
 }: {
   icon: React.ReactNode
@@ -113,12 +117,16 @@ function MoveStep({
   isDone?: boolean
   isLast?: boolean
   variant?: 'thinking' | 'tool' | 'final'
+  onIconClick?: () => void
   children: React.ReactNode
 }) {
   return (
     <div className={`move-step ${isLast ? 'last' : ''}`}>
       <div className="step-rail">
-        <div className={`step-icon ${variant ?? ''} ${isActive ? 'active' : ''} ${isDone ? 'done' : ''}`}>
+        <div 
+          className={`step-icon ${variant ?? ''} ${isActive ? 'active' : ''} ${isDone ? 'done' : ''} ${onIconClick ? 'clickable' : ''}`}
+          onClick={onIconClick}
+        >
           {icon}
         </div>
         {!isLast && <div className="step-line" />}
@@ -145,7 +153,6 @@ export function ThinkingBlock({
     <div className={`move thinking-block ${isCollapsed ? 'collapsed' : ''}`}>
       <div className="move-header" onClick={onToggle}>
         <span>Thinking</span>
-        <ChevronRight size={14} className="chevron" />
       </div>
       <div className="move-content">
         <StreamText segments={segments} />
@@ -155,7 +162,7 @@ export function ThinkingBlock({
   )
 }
 
-export type ToolCallStatus = 'forming' | 'running' | 'done'
+export type ToolCallStatus = 'running' | 'done'
 
 export type ToolCallData = {
   id: string
@@ -200,8 +207,11 @@ export function ToolCallBlock({
             ))}
           </span>
         )}
-        <span className={`tool-status-pill ${status}`}>{status}</span>
-        <ChevronRight size={14} className="chevron" />
+        {status === 'done' ? (
+          <Check size={14} className="tool-done-check" />
+        ) : (
+          <span className={`tool-status-pill ${status}`}>{status}</span>
+        )}
       </div>
       <div className="move-content">
         <div className="tool-args">
@@ -210,7 +220,7 @@ export function ToolCallBlock({
           ) : (
             <pre className="mono-pre">{JSON.stringify(inputObject ?? {}, null, 2)}</pre>
           )}
-          {(status === 'forming' || status === 'running') && <div className="shimmer" />}
+          {status === 'running' && <div className="shimmer" />}
         </div>
 
         {showResult && (
@@ -286,15 +296,32 @@ export function AgentTurnView({
     })
   }
 
+  // Toggle all tools in a group together
+  const toggleToolGroup = (toolIds: string[]) => {
+    setToggledMoves((prev) => {
+      const next = new Set(prev)
+      // Check if any tool in the group is currently expanded (in toggledMoves)
+      const anyExpanded = toolIds.some(id => prev.has(id))
+      // If any are expanded, collapse all; otherwise expand all
+      for (const id of toolIds) {
+        if (anyExpanded) {
+          next.delete(id)
+        } else {
+          next.add(id)
+        }
+      }
+      return next
+    })
+  }
+
   const hasFinalAnswer = finalSegments.length > 0
-  const isFinalAnswerDone = hasFinalAnswer && !isStreaming
 
   return (
     <div className={`agent-turn ${movesCollapsed ? 'moves-collapsed' : ''}`}>
       <div className="turn-header">
         <Bot size={16} />
         <span>{title}</span>
-        {isStreaming && <span className="header-spinner" />}
+        {isStreaming && !hasFinalAnswer && <span className="header-spinner" />}
         <span 
           className={`move-count ${movesCollapsed ? 'active' : ''}`}
           onClick={() => setMovesCollapsed(!movesCollapsed)}
@@ -307,7 +334,7 @@ export function AgentTurnView({
       {!movesCollapsed && (
         <div className="move-steps">
           {moves.map((move, index) => {
-            const isLastMove = index === moves.length - 1 && !hasFinalAnswer
+            const isLastMove = index === moves.length - 1
 
             if (move.type === 'thinking') {
               const isThinkingDone = !move.isStreaming
@@ -319,6 +346,7 @@ export function AgentTurnView({
                   isDone={isThinkingDone}
                   isLast={isLastMove}
                   variant="thinking"
+                  onIconClick={() => toggleMove(move.id)}
                 >
                   <ThinkingBlock
                     segments={move.segments}
@@ -333,9 +361,10 @@ export function AgentTurnView({
             // Tool group (parallel tools)
             if (move.type === 'tool_group') {
               const allDone = move.tools.every(t => t.status === 'done')
-              const anyActive = move.tools.some(t => t.status === 'forming' || t.status === 'running')
+              const anyActive = move.tools.some(t => t.status === 'running')
               // Use first tool's icon as the group icon
               const firstMeta = move.tools.length > 0 ? getToolMeta(move.tools[0].name) : { icon: <Terminal size={12} /> }
+              const toolIds = move.tools.map(t => t.id)
 
               return (
                 <MoveStep
@@ -345,6 +374,7 @@ export function AgentTurnView({
                   isDone={allDone}
                   isLast={isLastMove}
                   variant="tool"
+                  onIconClick={() => toggleToolGroup(toolIds)}
                 >
                   <div className="tool-group">
                     {move.tools.map((tool) => (
@@ -367,7 +397,7 @@ export function AgentTurnView({
             // Single tool call
             const meta = getToolMeta(move.name)
             const isToolDone = move.status === 'done'
-            const isToolActive = move.status === 'forming' || move.status === 'running'
+            const isToolActive = move.status === 'running'
 
             return (
               <MoveStep
@@ -377,6 +407,7 @@ export function AgentTurnView({
                 isDone={isToolDone}
                 isLast={isLastMove}
                 variant="tool"
+                onIconClick={() => toggleMove(move.id)}
               >
                 <ToolCallBlock
                   name={move.name}
@@ -390,28 +421,14 @@ export function AgentTurnView({
               </MoveStep>
             )
           })}
-
-          {hasFinalAnswer && (
-            <MoveStep
-              icon={<MessageSquare size={12} />}
-              isActive={isStreaming}
-              isDone={isFinalAnswerDone}
-              isLast={true}
-              variant="final"
-            >
-              <div className="final-answer">
-                <StreamText segments={finalSegments} />
-                {isStreaming && <span className="inline-cursor" />}
-              </div>
-            </MoveStep>
-          )}
         </div>
       )}
 
-      {/* Final answer shown outside move-steps when collapsed */}
-      {movesCollapsed && hasFinalAnswer && (
-        <div className="final-answer collapsed-view">
+      {/* Final answer - always shown outside move-steps, styled like user message */}
+      {hasFinalAnswer && (
+        <div className="agent-message">
           <StreamText segments={finalSegments} />
+          {isStreaming && <span className="inline-cursor" />}
         </div>
       )}
     </div>

@@ -106,7 +106,7 @@ export function ThreadView({
       update()
 
       requestAnimationFrame(() => {
-        scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
+        scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight })
       })
     }
 
@@ -294,7 +294,7 @@ function handleEvent(
       const newTool: ToolCallData = {
         id: data.id,
         name: data.name,
-        status: 'forming',
+        status: 'running',
         inputText: '',
       }
 
