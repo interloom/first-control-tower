@@ -273,37 +273,14 @@ export function AgentTurnView({
   // Thinking: default expanded (toggled = collapsed)
   // Tool calls: default collapsed (toggled = expanded)
   const [toggledMoves, setToggledMoves] = useState<Set<string>>(new Set())
-  const [allCollapsed, setAllCollapsed] = useState(false)
 
   const toggleMove = (moveId: string) => {
-    // If user manually toggles a move, exit "all collapsed" mode
-    setAllCollapsed(false)
     setToggledMoves((prev) => {
       const next = new Set(prev)
       if (next.has(moveId)) next.delete(moveId)
       else next.add(moveId)
       return next
     })
-  }
-
-  // Collapse all moves (except final answer) when clicking move count
-  const collapseAllMoves = () => {
-    if (allCollapsed) {
-      // Restore to default state: clear all toggles
-      setAllCollapsed(false)
-      setToggledMoves(new Set())
-    } else {
-      // Collapse all: thinking blocks need to be in toggledMoves (to collapse)
-      // Tool calls are collapsed by default, so clear them from toggledMoves
-      const thinkingIds = new Set<string>()
-      for (const move of moves) {
-        if (move.type === 'thinking') {
-          thinkingIds.add(move.id)
-        }
-      }
-      setAllCollapsed(true)
-      setToggledMoves(thinkingIds)
-    }
   }
 
   const hasFinalAnswer = finalSegments.length > 0
@@ -315,11 +292,7 @@ export function AgentTurnView({
         <Bot size={16} />
         <span>{title}</span>
         {isStreaming && <span className="header-spinner" />}
-        <span 
-          className={`move-count ${allCollapsed ? 'collapsed-state' : ''}`}
-          onClick={collapseAllMoves}
-          title={allCollapsed ? 'Expand all moves' : 'Collapse all moves'}
-        >
+        <span className="move-count">
           {moves.length} move{moves.length !== 1 ? 's' : ''}
         </span>
       </div>
