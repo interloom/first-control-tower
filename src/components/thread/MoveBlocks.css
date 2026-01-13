@@ -430,7 +430,6 @@
 .agent-message {
   width: 100%;
   background: var(--mono-0);
-  border: 1px solid var(--mono-200);
   border-radius: 6px;
   padding: 14px 16px;
   box-shadow: 0 1px 0 var(--alpha-film-50);
