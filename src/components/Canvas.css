@@ -2,7 +2,7 @@
   flex: 1;
   position: relative;
   border: 1px solid var(--alpha-film-200);
-  border-radius: 7px;
+  border-radius: 0px;
   margin: 0 10px 11px 0;
   overflow: hidden;
   background: var(--mono-50);

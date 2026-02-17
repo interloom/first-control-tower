@@ -5,8 +5,8 @@
   bottom: 96px;
   z-index: 10;
   background: var(--mono-0);
-  border: 1px solid var(--alpha-film-150);
-  border-radius: 10px;
+  border: 1px solid var(--alpha-film-200);
+  border-radius: 0px;
   box-shadow: 
     0 4px 12px var(--alpha-film-100),
     0 1px 3px var(--alpha-film-50);
